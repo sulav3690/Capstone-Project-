@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-green: #1FA463;
+  --color-header-grey: #5A6F78;
+  --color-accent-orange: #F36C3D;
+  --color-bg-grey: #F6F8F9;
+  --color-card-white: #FFFFFF;
+  --color-border-grey: #E5E7EB;
+  
+  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+@layer base {
+  body {
+    @apply bg-bg-grey text-gray-800 font-sans;
+  }
+}
+
+@layer components {
+  .card-shadow {
+    @apply shadow-soft;
+  }
+}
