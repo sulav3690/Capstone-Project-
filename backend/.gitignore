@@ -1,0 +1,25 @@
+# Django Environment variables
+.env
+
+# Python caching
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Local databases
+db.sqlite3
+db.sqlite3-journal
+
+# Django Media and Static Assets
+media/
+staticfiles/
+
+# Logs
+logs/
+*.log
+
+# OS metadata
+.DS_Store
+Thumbs.db
