@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '../../components/Layout';
+import emailjs from '@emailjs/browser';
 
 export default function Feedback() {
   const router = useRouter();
@@ -10,8 +11,31 @@ export default function Feedback() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const whyChooseUsChecked = formData.getAll('why_choose_us');
+
+    const templateParams = {
+      hear_about_us: formData.get('hear_about_us') || '',
+      role: formData.get('role') || '',
+      ai_usage: formData.get('ai_usage') || '',
+      why_choose_us: whyChooseUsChecked.join(', '),
+    };
+
+    // Send feedback data using @emailjs/browser
+    emailjs.send(
+      'service_98z4snm',
+      'template_r8cy4sw',
+      templateParams,
+      'cPgeihOtrEGV8iPwT'
+    )
+    .then((result) => {
+      console.log("EmailJS Success:", result.text);
+    })
+    .catch((error) => {
+      console.error("EmailJS Error:", error);
+    });
+
     setIsSubmitted(true);
-    // Simulate API call and redirect back
     setTimeout(() => {
       router.push('/dashboard');
     }, 2000);
@@ -38,6 +62,7 @@ export default function Feedback() {
                 <div className="relative">
                   <select
                     required
+                    name="hear_about_us"
                     defaultValue=""
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-[#F9FAFB] text-gray-700 appearance-none focus:outline-none focus:ring-2 focus:ring-[#1FA463]/30 focus:border-[#1FA463] hover:border-gray-300 transition-all cursor-pointer shadow-sm"
                   >
