@@ -76,13 +76,14 @@ export default function LandingPage() {
         <div className="flex items-center gap-12">
           <div 
             onClick={() => router.push('/')}
-            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-all"
+            className="flex items-center cursor-pointer hover:opacity-80 transition-all"
             title="Go to Homepage"
           >
-            <div className="bg-gradient-to-br from-[#7755FF] to-[#4F33FF] p-[6px] rounded-lg shadow-lg">
-              <ShieldCheck size={22} className="text-white" strokeWidth={2.5} />
-            </div>
-            <span className="font-bold text-[22px] tracking-tight text-stone-900">VeritasAI</span>
+            <img 
+              src="/Headerfinal.webp" 
+              alt="VeritasAI" 
+              className="h-10 w-auto object-contain" 
+            />
           </div>
           
           <div className="flex items-center gap-8">

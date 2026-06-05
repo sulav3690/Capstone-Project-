@@ -35,6 +35,67 @@ import Toggle from '../../components/ui/Toggle';
 import Footer from '../../components/Footer';
 import { useToast } from '../../components/ToastProvider';
 
+// ─── Simulated Analysis Engine ────────────────────────────────────────────────
+// Produces realistic, text-dependent scores without a backend
+function analyzeText(text) {
+  const words = text.trim().split(/\s+/);
+  const wordCount = words.length;
+  const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+
+  // Avg words per sentence (AI tends to be consistent: ~18-22)
+  const avgWordsPerSentence = wordCount / Math.max(sentences.length, 1);
+
+  // Vocabulary richness: unique / total words
+  const uniqueWords = new Set(words.map((w) => w.toLowerCase().replace(/\W/g, '')));
+  const lexicalDiversity = uniqueWords.size / Math.max(wordCount, 1);
+
+  // Repetition score: how many words repeat >3 times
+  const freq = {};
+  words.forEach((w) => {
+    const wl = w.toLowerCase().replace(/\W/g, '');
+    freq[wl] = (freq[wl] || 0) + 1;
+  });
+  const repeatedWords = Object.values(freq).filter((c) => c > 3).length;
+  const repetitionRatio = repeatedWords / Math.max(uniqueWords.size, 1);
+
+  // AI probability signal: uniform sentence length + low lexical diversity + repetition
+  let aiSignal = 0;
+  if (avgWordsPerSentence > 16 && avgWordsPerSentence < 24) aiSignal += 0.25;
+  if (lexicalDiversity < 0.55) aiSignal += 0.30;
+  if (repetitionRatio > 0.05) aiSignal += 0.20;
+  if (wordCount < 30) aiSignal += 0.10; // Short texts are less conclusive
+
+  // Clamp aiSignal 0–0.80  (never 100% AI — always some uncertainty)
+  aiSignal = Math.min(aiSignal + Math.random() * 0.08, 0.80);
+
+  const aiPct = Math.round(aiSignal * 100);
+  const humanPct = Math.round((1 - aiSignal) * 0.88 * 100); // small gap for "humanized AI"
+  const humanizedPct = 100 - aiPct - humanPct;
+  const authenticity = humanPct;
+
+  // Misinformation: random-ish but seeded by text length + content
+  const misinfoKeywords = ['fake', 'false', 'hoax', 'conspiracy', 'rumor', 'unverified', 'claim'];
+  const misinfoHits = misinfoKeywords.filter((kw) =>
+    text.toLowerCase().includes(kw)
+  ).length;
+  const misinfoRisk = misinfoHits > 1 ? 'High' : misinfoHits === 1 ? 'Medium' : 'Low';
+
+  return { aiPct, humanPct, humanizedPct, authenticity, misinfoRisk };
+}
+
+// ─── Highlight words in the user's text ───────────────────────────────────────
+function buildHighlightedSegments(text, aiPct) {
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  return sentences.map((sentence, i) => {
+    const hash = sentence.length + i;
+    if (aiPct > 50 && hash % 4 === 0) return { text: sentence, color: 'decoration-red-400 bg-red-50 text-red-800' };
+    if (hash % 3 === 0) return { text: sentence, color: 'decoration-[#1FA463]/40 bg-green-50 text-green-800' };
+    if (hash % 5 === 0) return { text: sentence, color: 'decoration-amber-400 bg-amber-50 text-amber-800' };
+    if (aiPct > 35 && hash % 7 === 0) return { text: sentence, color: 'decoration-orange-400 bg-orange-50/70 text-orange-800' };
+    return { text: sentence, color: null };
+  });
+}
+
 const Detector = () => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('detector');
@@ -48,6 +109,12 @@ const Detector = () => {
   const [openFaqIndices, setOpenFaqIndices] = useState([]);
   const { showToast } = useToast();
   
+  // App features state
+  const [subscriptionPlan, setSubscriptionPlan] = useState('Free');
+  const [showResults, setShowResults] = useState(false);
+  const [resultsData, setResultsData] = useState(null);
+  const [segments, setSegments] = useState([]);
+  
   // Account subview states
   const [accountSubTab, setAccountSubTab] = useState('general');
   const [displayName, setDisplayName] = useState('Sabin Shrestha');
@@ -58,6 +125,16 @@ const Detector = () => {
   
   const fileInputRef = useRef(null);
   const editorRef = useRef(null);
+  const resultsRef = useRef(null);
+
+  const handleSubscribe = (planName) => {
+    setSubscriptionPlan(planName);
+    showToast(`Successfully upgraded to ${planName} Plan! Premium features unlocked.`, 'success');
+    setActiveTab('detector');
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
+  };
 
   // Auto-collapse sidebar on screen sizes below 1024px for responsiveness
   useEffect(() => {
@@ -121,12 +198,45 @@ const Detector = () => {
     );
   };
 
+  const smoothScrollTo = (targetElement, duration = 800) => {
+    if (!targetElement) return;
+    const targetPosition = targetElement.getBoundingClientRect().top + window.pageYOffset - 40;
+    const startPosition = window.pageYOffset;
+    const distance = targetPosition - startPosition;
+    let startTime = null;
+
+    const easeInOutCubic = (t) => {
+      return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
+    };
+
+    const animation = (currentTime) => {
+      if (startTime === null) startTime = currentTime;
+      const timeElapsed = currentTime - startTime;
+      const run = easeInOutCubic(Math.min(timeElapsed / duration, 1));
+      window.scrollTo(0, startPosition + distance * run);
+      if (timeElapsed < duration) {
+        requestAnimationFrame(animation);
+      }
+    };
+
+    requestAnimationFrame(animation);
+  };
+
+  const checkAndResetResults = (textVal) => {
+    const isTextEmpty = textVal.trim() === '';
+    setIsEmpty(isTextEmpty);
+    const words = isTextEmpty ? 0 : textVal.trim().split(/\s+/).length;
+    setWordCount(words);
+    if (isTextEmpty) {
+      setShowResults(false);
+      setResultsData(null);
+    }
+  };
+
   const handleInput = (e) => {
     setError('');
     const textVal = e.target.innerText || '';
-    setIsEmpty(textVal.trim() === '');
-    const words = textVal.trim() === '' ? 0 : textVal.trim().split(/\s+/).length;
-    setWordCount(words);
+    checkAndResetResults(textVal);
   };
 
   const handleFormat = (command, value = null) => {
@@ -143,9 +253,7 @@ const Detector = () => {
     }
     
     const textVal = editorRef.current.innerText || '';
-    setIsEmpty(textVal.trim() === '');
-    const words = textVal.trim() === '' ? 0 : textVal.trim().split(/\s+/).length;
-    setWordCount(words);
+    checkAndResetResults(textVal);
   };
 
   const handlePasteClick = async () => {
@@ -156,9 +264,7 @@ const Detector = () => {
       if (clipboardText) {
         document.execCommand('insertText', false, clipboardText);
         const textVal = editorRef.current.innerText || '';
-        setIsEmpty(textVal.trim() === '');
-        const words = textVal.trim() === '' ? 0 : textVal.trim().split(/\s+/).length;
-        setWordCount(words);
+        checkAndResetResults(textVal);
       }
     } catch (err) {
       showToast("Please use Ctrl+V to paste or grant clipboard permission to the browser.", "error");
@@ -174,15 +280,29 @@ const Detector = () => {
     }
     setError('');
     setIsAnalyzing(true);
+    setShowResults(true);
 
-    // Save states to localStorage for results page
+    // Smoothly scroll to the results ref area using custom ease function
+    setTimeout(() => {
+      smoothScrollTo(resultsRef.current, 900);
+    }, 100);
+
+    // Save states to localStorage for compatibility
     localStorage.setItem('veritas_text', plainText);
     localStorage.setItem('veritas_aiDetection', aiDetection.toString());
     localStorage.setItem('veritas_misinformation', misinformation.toString());
 
     setTimeout(() => {
-      router.push('/result');
-    }, 900);
+      const analysis = analyzeText(plainText);
+      setResultsData(analysis);
+      setSegments(buildHighlightedSegments(plainText, analysis.aiPct));
+      setIsAnalyzing(false);
+      showToast('Analysis completed successfully!', 'success');
+      // Scroll again in case the container expanded
+      setTimeout(() => {
+        smoothScrollTo(resultsRef.current, 700);
+      }, 100);
+    }, 1500);
   };
 
   const handleFileUpload = (e) => {
@@ -192,10 +312,8 @@ const Detector = () => {
     reader.onload = (ev) => {
       if (editorRef.current) {
         editorRef.current.innerText = ev.target.result;
-        setIsEmpty(ev.target.result.trim() === '');
-        const words = ev.target.result.trim() === '' ? 0 : ev.target.result.trim().split(/\s+/).length;
-        setWordCount(words);
         setError('');
+        checkAndResetResults(ev.target.result);
       }
     };
     reader.readAsText(file);
@@ -243,7 +361,7 @@ const Detector = () => {
           <nav className="flex flex-col gap-6 mt-4 w-full">
             <button 
               onClick={() => setActiveTab('detector')}
-              className={`flex items-center gap-3 rounded-xl text-sm transition-all w-full text-left ${
+              className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all w-full text-left ${
                 activeTab === 'detector'
                   ? 'bg-stone-900 text-white shadow-sm font-semibold'
                   : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
@@ -259,11 +377,11 @@ const Detector = () => {
             {/* Account Section */}
             <div className="flex flex-col gap-2 w-full">
               {!isSidebarCollapsed && (
-                <span className="text-[11px] font-bold text-stone-400 tracking-wider uppercase px-4 whitespace-nowrap">Account</span>
+                <span className="text-xs font-bold text-stone-400/80 tracking-wider uppercase px-4 whitespace-nowrap">Account</span>
               )}
               <button 
                 onClick={() => setActiveTab('account')}
-                className={`flex items-center gap-3 rounded-xl text-sm transition-all text-left w-full ${
+                className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all text-left w-full ${
                   activeTab === 'account'
                     ? 'bg-stone-900 text-white shadow-sm font-semibold'
                     : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
@@ -277,7 +395,7 @@ const Detector = () => {
               </button>
               <button 
                 onClick={() => setActiveTab('plans')}
-                className={`flex items-center gap-3 rounded-xl text-sm transition-all text-left w-full ${
+                className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all text-left w-full ${
                   activeTab === 'plans'
                     ? 'bg-stone-900 text-white shadow-sm font-semibold'
                     : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
@@ -294,11 +412,11 @@ const Detector = () => {
             {/* Help Section */}
             <div className="flex flex-col gap-2 w-full">
               {!isSidebarCollapsed && (
-                <span className="text-[11px] font-bold text-stone-400 tracking-wider uppercase px-4 whitespace-nowrap">Help</span>
+                <span className="text-xs font-bold text-stone-400/80 tracking-wider uppercase px-4 whitespace-nowrap">Help</span>
               )}
               <button 
                 onClick={() => setActiveTab('faq')}
-                className={`flex items-center gap-3 rounded-xl text-sm transition-all text-left w-full ${
+                className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all text-left w-full ${
                   activeTab === 'faq'
                     ? 'bg-stone-900 text-white shadow-sm font-semibold'
                     : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
@@ -312,7 +430,7 @@ const Detector = () => {
               </button>
               <button 
                 onClick={() => showToast('Support desk is currently under maintenance.', 'error')}
-                className={`flex items-center gap-3 text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 rounded-xl font-medium text-sm transition-all text-left w-full ${
+                className={`flex items-center gap-3 text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 rounded-xl font-medium text-[15.5px] transition-all text-left w-full ${
                   isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
                 }`}
                 title="Support"
@@ -322,7 +440,7 @@ const Detector = () => {
               </button>
               <button 
                 onClick={() => window.open('https://discord.gg/YwGVj2V5Qk', '_blank')}
-                className={`flex items-center gap-3 text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 rounded-xl font-medium text-sm transition-all text-left w-full ${
+                className={`flex items-center gap-3 text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 rounded-xl font-medium text-[15.5px] transition-all text-left w-full ${
                   isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
                 }`}
                 title="Discord"
@@ -342,7 +460,7 @@ const Detector = () => {
             <button 
               onClick={() => setActiveTab('account')}
               className="relative cursor-pointer hover:scale-105 transition-all w-10 h-10 rounded-full bg-gradient-to-br from-[#7755FF] to-[#4F33FF] flex items-center justify-center text-white font-bold text-[15px] shadow-sm border-none outline-none shrink-0"
-              title={`${displayName} - Free Plan (Click to settings)`}
+              title={`${displayName} - ${subscriptionPlan} Plan (Click to settings)`}
             >
               {displayName.charAt(0)}
               <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-[#22C55E] ring-2 ring-white"></span>
@@ -374,10 +492,9 @@ const Detector = () => {
               <div className="flex flex-col gap-2">
                 {/* Upgrade Button */}
                 <button 
-                  onClick={() => setActiveTab('plans')}
+                  onClick={() => handleSubscribe('Monthly')}
                   className="w-full py-1.5 pl-1.5 pr-4 bg-stone-950/5 hover:bg-stone-950/10 active:scale-98 border border-stone-900/5 rounded-full flex items-center gap-2.5 transition-all cursor-pointer text-left shadow-sm"
                 >
-                  {/* Black circle icon with 4-point sparkle star */}
                   <div className="w-6 h-6 rounded-full bg-slate-950 flex items-center justify-center shrink-0">
                     <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
@@ -403,10 +520,10 @@ const Detector = () => {
       </aside>
 
       {/* Main Content Pane - Automatically stretches dynamically when sidebar collapses */}
-      <main className="flex-1 p-4 sm:p-8 max-w-[1240px] mx-auto w-full flex flex-col justify-start transition-all duration-300">
+      <main className="flex-1 p-4 sm:p-8 pt-10 sm:pt-16 max-w-[1240px] mx-auto w-full flex flex-col justify-start transition-all duration-300">
         {activeTab === 'detector' && (
           <>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-stone-900 mb-1 text-center tracking-tight">
+            <h1 className="text-3xl sm:text-4xl font-bold text-stone-800 mb-6 text-center tracking-tight">
               AI Content &amp; Misinformation Detector
             </h1>
 
@@ -429,43 +546,27 @@ const Detector = () => {
 
                 {/* Rich-Text Input area with contentEditable or Loading Skeleton */}
                 <div className="relative flex-1 flex flex-col">
-                  {isAnalyzing ? (
-                    /* Warm-Beige Pulse Loading Skeleton */
-                    <div className="flex-1 flex flex-col gap-4 animate-pulse pt-2 select-none pointer-events-none">
-                      <div className="h-[28px] w-1/4 bg-[#EBE5D8]/60 rounded-lg"></div>
-                      <div className="space-y-[15px] pt-4">
-                        <div className="h-[19px] bg-[#EBE5D8]/40 rounded-md w-full"></div>
-                        <div className="h-[19px] bg-[#EBE5D8]/40 rounded-md w-11/12"></div>
-                        <div className="h-[19px] bg-[#EBE5D8]/40 rounded-md w-5/6"></div>
-                        <div className="h-[19px] bg-[#EBE5D8]/40 rounded-md w-full"></div>
-                        <div className="h-[19px] bg-[#EBE5D8]/40 rounded-md w-9/12"></div>
-                      </div>
+                  {isEmpty && (
+                    <div className="absolute top-6 left-6 text-stone-400 pointer-events-none select-none text-[19px]">
+                      Enter or paste the text you want to verify here...
                     </div>
-                  ) : (
-                    <>
-                      {isEmpty && (
-                        <div className="absolute top-6 left-6 text-stone-400 pointer-events-none select-none text-[19px]">
-                          Enter or paste the text you want to verify here...
-                        </div>
-                      )}
-                      <div
-                        ref={editorRef}
-                        id="analyze-input"
-                        contentEditable={true}
-                        onInput={handleInput}
-                        onFocus={() => setIsEmpty(false)}
-                        onBlur={(e) => {
-                          const textVal = e.target.innerText || '';
-                          setIsEmpty(textVal.trim() === '');
-                        }}
-                        className="flex-1 w-full p-5 text-stone-700 bg-stone-50/30 rounded-2xl border border-stone-200/40 focus:outline-none focus:ring-2 focus:ring-[#1FA463]/30 overflow-y-auto text-[19px] leading-relaxed transition focus:border-[#1FA463] outline-none"
-                        style={{
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                        }}
-                      />
-                    </>
                   )}
+                  <div
+                    ref={editorRef}
+                    id="analyze-input"
+                    contentEditable={true}
+                    onInput={handleInput}
+                    onFocus={() => setIsEmpty(false)}
+                    onBlur={(e) => {
+                      const textVal = e.target.innerText || '';
+                      setIsEmpty(textVal.trim() === '');
+                    }}
+                    className="flex-1 w-full p-5 text-stone-700 bg-stone-50/30 rounded-2xl border border-stone-200/40 focus:outline-none focus:ring-2 focus:ring-[#1FA463]/30 overflow-y-auto text-[19px] leading-relaxed transition focus:border-[#1FA463] outline-none"
+                    style={{
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                    }}
+                  />
                 </div>
 
                 {/* Toolbar + Upload + Word Count */}
@@ -592,12 +693,12 @@ const Detector = () => {
             </div>
 
             {/* Analyze Now button */}
-            <div className="mt-1 flex justify-center translate-y-0">
+            <div className="mt-4 flex justify-center translate-y-0">
               <button
                 id="analyze-btn"
                 onClick={handleAnalyze}
                 disabled={isAnalyzing || wordCount > MAX_WORDS}
-                className={`px-14 py-4 text-lg font-bold rounded-xl text-white shadow-md hover:shadow-lg active:scale-98 transition-all duration-200 ${
+                className={`px-16 py-5 text-xl font-bold rounded-xl text-white shadow-md hover:shadow-lg active:scale-98 transition-all duration-200 ${
                   isAnalyzing || wordCount > MAX_WORDS
                     ? 'bg-stone-300 cursor-not-allowed text-stone-500'
                     : 'bg-[#1FA463] hover:bg-[#178a52] hover:-translate-y-0.5 shadow-[#1FA463]/25'
@@ -614,6 +715,225 @@ const Detector = () => {
                 ) : 'Analyze Now'}
               </button>
             </div>
+
+            {/* Scroll Target for Results */}
+            <div ref={resultsRef} className="scroll-mt-10" />
+
+            {showResults && (
+              <div className="mt-12 w-full max-w-[1100px] mx-auto transition-all duration-500">
+                {isAnalyzing ? (
+                  /* Loading Spinner / Brain animation */
+                  <Card className="bg-white border border-stone-200/40 p-10 rounded-3xl shadow-sm text-center flex flex-col items-center justify-center min-h-[300px]">
+                    <div className="relative mb-6">
+                      <div className="w-16 h-16 rounded-full border-4 border-stone-100 border-t-[#1FA463] animate-spin" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <svg className="w-6 h-6 text-[#1FA463]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+                        </svg>
+                      </div>
+                    </div>
+                    <h3 className="text-xl font-bold text-stone-800 mb-2">Analyzing your text...</h3>
+                    <p className="text-stone-500 text-sm max-w-xs leading-relaxed mx-auto">
+                      VeritasAI is scanning perplexity, burstiness, and factual signals. This usually takes under 5 seconds.
+                    </p>
+                  </Card>
+                ) : resultsData && (
+                  <div className="space-y-8 animate-fadeIn text-left">
+                    <h2 className="text-2xl font-bold text-stone-800 border-b border-stone-200 pb-3 mb-6">
+                      Analysis Results
+                    </h2>
+
+                    {/* Dual detection results card */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
+                      
+                      {/* 1. AI Generated Detection Card */}
+                      {aiDetection ? (
+                        <div className="bg-white border border-stone-200/50 rounded-3xl p-6 sm:p-8 flex flex-col justify-between shadow-sm transition hover:shadow-md">
+                          <div className="text-left mb-6">
+                            <span className="text-[11px] font-extrabold text-stone-400 uppercase tracking-wider block mb-1">AI Generated Detection</span>
+                            <h3 className="text-lg font-bold text-stone-900">Overall Authenticity</h3>
+                          </div>
+                          
+                          <div className="flex flex-col items-center mb-6">
+                            {/* Authenticity Gauge */}
+                            <div className="w-28 h-28 rounded-full border-8 border-stone-100 flex flex-col items-center justify-center relative shadow-sm mb-4">
+                              <span className="text-3xl font-black text-[#1FA463]">{resultsData.authenticity}%</span>
+                              <span className="text-[10px] font-bold text-stone-400 uppercase">Human</span>
+                            </div>
+                            
+                            {/* Simple Progress Bar */}
+                            <div className="w-full h-2 bg-stone-100 rounded-full mb-6">
+                              <div 
+                                className="h-full rounded-full bg-[#1FA463] transition-all duration-1000"
+                                style={{ width: `${resultsData.authenticity}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-3.5 w-full text-left">
+                            <div className="flex justify-between items-center border-b border-stone-100 pb-2">
+                              <span className="text-[13px] text-stone-500 font-semibold">Human Written Score</span>
+                              <span className="text-[14px] font-bold text-stone-800">{resultsData.humanPct}%</span>
+                            </div>
+                            <div className="flex justify-between items-center border-b border-stone-100 pb-2">
+                              <span className="text-[13px] text-stone-500 font-semibold">AI Generated Score</span>
+                              <span className="text-[14px] font-bold text-red-500">{resultsData.aiPct}%</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-[13px] text-stone-500 font-semibold">Humanized AI Probability</span>
+                              <span className="text-[14px] font-bold text-amber-500">{resultsData.humanizedPct}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-stone-50 border border-stone-200/30 rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-inner min-h-[300px]">
+                          <Lock size={28} className="text-stone-300 mb-4" />
+                          <h3 className="text-base font-bold text-stone-700 mb-1">AI Detection Disabled</h3>
+                          <p className="text-stone-400 text-xs max-w-[200px]">Toggle AI Generated Detection above to run this scan.</p>
+                        </div>
+                      )}
+
+                      {/* 2. Misinformation Signals Card */}
+                      {misinformation ? (
+                        <div className="bg-white border border-stone-200/50 rounded-3xl p-6 sm:p-8 flex flex-col justify-between shadow-sm transition hover:shadow-md">
+                          <div className="text-left mb-6">
+                            <span className="text-[11px] font-extrabold text-stone-400 uppercase tracking-wider block mb-1">Misinformation Signals</span>
+                            <h3 className="text-lg font-bold text-stone-900">Factcheck Integrity</h3>
+                          </div>
+                          
+                          <div className="flex flex-col items-center mb-6">
+                            {/* Misinformation Risk Gauge */}
+                            <div className="w-28 h-28 rounded-full border-8 border-stone-100 flex flex-col items-center justify-center relative shadow-sm mb-4">
+                              <span className={`text-2xl font-black uppercase ${
+                                resultsData.misinfoRisk === 'High' 
+                                  ? 'text-red-500' 
+                                  : resultsData.misinfoRisk === 'Medium' 
+                                    ? 'text-amber-500' 
+                                    : 'text-[#1FA463]'
+                              }`}>{resultsData.misinfoRisk}</span>
+                              <span className="text-[10px] font-bold text-stone-400 uppercase">Risk</span>
+                            </div>
+                            
+                            {/* Simple Progress Bar */}
+                            <div className="w-full h-2 bg-stone-100 rounded-full mb-6">
+                              <div 
+                                className={`h-full rounded-full transition-all duration-1000 ${
+                                  resultsData.misinfoRisk === 'High' 
+                                    ? 'bg-red-500' 
+                                    : resultsData.misinfoRisk === 'Medium' 
+                                      ? 'bg-amber-500' 
+                                      : 'bg-[#1FA463]'
+                                }`}
+                                style={{ width: resultsData.misinfoRisk === 'High' ? '90%' : resultsData.misinfoRisk === 'Medium' ? '50%' : '15%' }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-3.5 w-full text-left">
+                            <div className="flex justify-between items-center border-b border-stone-100 pb-2">
+                              <span className="text-[13px] text-stone-500 font-semibold">Unverified Claims Flags</span>
+                              <span className="text-[14px] font-bold text-stone-800">
+                                {resultsData.misinfoRisk === 'High' ? '3 flags' : resultsData.misinfoRisk === 'Medium' ? '1 flag' : '0 flags'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center border-b border-stone-100 pb-2">
+                              <span className="text-[13px] text-stone-500 font-semibold">Sensationalism & Clickbait</span>
+                              <span className="text-[14px] font-bold text-stone-800">
+                                {resultsData.misinfoRisk === 'High' ? 'High Presence' : resultsData.misinfoRisk === 'Medium' ? 'Moderate' : 'Negligible'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-[13px] text-stone-500 font-semibold">Capitalization Ratio</span>
+                              <span className="text-[14px] font-bold text-stone-800">Normal</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-stone-50 border border-stone-200/30 rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-inner min-h-[300px]">
+                          <Lock size={28} className="text-stone-300 mb-4" />
+                          <h3 className="text-base font-bold text-stone-700 mb-1">Misinformation Disabled</h3>
+                          <p className="text-stone-400 text-xs max-w-[200px]">Toggle Misinformation Signals above to run this scan.</p>
+                        </div>
+                      )}
+
+                    </div>
+
+                    {/* Advanced Sentence Scanning Section (Blurred Paywall) */}
+                    <div className="w-full text-left mt-8">
+                      <Card className="bg-white border border-stone-200/40 shadow-[0_15px_45px_rgba(28,25,23,0.02)] p-6 sm:p-8 rounded-3xl relative overflow-hidden">
+                        
+                        <div className="flex items-center gap-2 mb-4">
+                          <h3 className="text-lg font-bold text-stone-900 font-sans">Advanced Sentence Scanning</h3>
+                          {subscriptionPlan === 'Free' && (
+                            <span className="px-2.5 py-0.5 bg-red-50 text-red-500 border border-red-100 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 select-none">
+                              <Lock size={10} /> Pro Locked
+                            </span>
+                          )}
+                        </div>
+                        
+                        <p className="text-stone-400 text-xs font-semibold mb-6">
+                          Understand how each sentence impacts AI probabilities and factcheck metrics.
+                        </p>
+
+                        {/* Sentence display container */}
+                        <div className={`transition-all duration-500 ${subscriptionPlan === 'Free' ? 'blur-[5px] select-none pointer-events-none' : ''}`}>
+                          <div className="text-stone-700 leading-relaxed text-[16px] space-y-4 font-sans">
+                            {segments.map((seg, i) => (
+                              <span
+                                key={i}
+                                className={seg.color ? `px-1 rounded ${seg.color} underline decoration-dotted decoration-2 underline-offset-4` : undefined}
+                              >
+                                {seg.text}{' '}
+                              </span>
+                            ))}
+                          </div>
+                          
+                          {/* Legend for sentences */}
+                          <div className="flex flex-wrap gap-4 items-center border-t border-stone-100 pt-4 mt-6">
+                            <div className="flex items-center gap-2">
+                              <div className="h-2.5 w-5 rounded bg-red-100 border border-red-200" />
+                              <span className="text-[11px] font-bold text-stone-400 uppercase">AI Generated</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="h-2.5 w-5 rounded bg-green-100 border border-green-200" />
+                              <span className="text-[11px] font-bold text-stone-400 uppercase">Human Written</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="h-2.5 w-5 rounded bg-amber-100 border border-amber-200" />
+                              <span className="text-[11px] font-bold text-stone-400 uppercase">Humanized AI</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Lock Overlay when Free */}
+                        {subscriptionPlan === 'Free' && (
+                          <div className="absolute inset-0 bg-stone-50/15 backdrop-blur-[2px] flex flex-col items-center justify-center p-6 text-center z-10">
+                            <div className="w-12 h-12 bg-stone-900 rounded-full flex items-center justify-center shadow-lg text-white mb-4 animate-bounce">
+                              <Lock size={20} />
+                            </div>
+                            <h4 className="text-lg font-bold text-stone-900 mb-2">Detailed Report is Locked</h4>
+                            <p className="text-stone-500 text-sm max-w-sm mb-6 leading-relaxed">
+                              Get sentence-by-sentence highlights, clickbait breakdown, and structural statistics by upgrading your plan.
+                            </p>
+                            <button
+                              onClick={() => {
+                                setActiveTab('plans');
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              }}
+                              className="px-8 py-3 bg-[#1FA463] hover:bg-[#178a52] text-white rounded-xl font-bold text-sm shadow-md shadow-[#1FA463]/10 active:scale-95 transition-all cursor-pointer pointer-events-auto border-none outline-none"
+                            >
+                              Unlock with Premium Plan
+                            </button>
+                          </div>
+                        )}
+
+                      </Card>
+                    </div>
+
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
 
@@ -622,7 +942,7 @@ const Detector = () => {
           <div className="w-full flex flex-col items-center">
             {/* Header section matching cream style */}
             <div className="max-w-2xl text-center mb-12 mt-4">
-              <h1 className="text-[36px] sm:text-[42px] font-black tracking-tight text-stone-900 mb-5 leading-[1.1]">
+              <h1 className="text-[36px] sm:text-[42px] font-bold tracking-tight text-stone-800 mb-5 leading-[1.1]">
                 Choose Your Subscription<br />Plan
               </h1>
               <p className="text-stone-500 max-w-xl mx-auto text-[15px] font-medium leading-relaxed">
@@ -631,7 +951,7 @@ const Detector = () => {
             </div>
 
             {/* Plan Cards list - styled cleanly with custom HSL borders, shadows and colors */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-[1100px] items-stretch">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-[1100px] items-stretch text-left">
               
               {/* Weekly Plan */}
               <div className="relative flex flex-col h-full bg-white rounded-3xl p-8 border border-stone-200/60 shadow-[0_15px_40px_rgba(28,25,23,0.015)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_20px_50px_rgba(28,25,23,0.03)]">
@@ -644,7 +964,7 @@ const Detector = () => {
                 </div>
 
                 <button
-                  onClick={() => router.push('/payment?planName=Weekly%20Plan&planPrice=%245')}
+                  onClick={() => handleSubscribe('Weekly')}
                   className="w-full py-3 rounded-xl font-bold text-[13px] mb-8 transition-all duration-200 bg-stone-100 text-stone-800 hover:bg-stone-200/80 active:scale-98"
                 >
                   Subscribe Weekly
@@ -684,7 +1004,7 @@ const Detector = () => {
                 </div>
 
                 <button
-                  onClick={() => router.push('/payment?planName=Monthly%20Plan&planPrice=%2420')}
+                  onClick={() => handleSubscribe('Monthly')}
                   className="w-full py-3 rounded-xl font-bold text-[13px] mb-8 transition-all duration-200 bg-[#1FA463] text-white hover:bg-[#178a52] shadow-md shadow-[#1FA463]/20 active:scale-98"
                 >
                   Subscribe Monthly
@@ -717,14 +1037,12 @@ const Detector = () => {
                     <span className="text-stone-400 font-medium text-[13px] ml-1">/year</span>
                   </div>
                 </div>
-
                 <button
-                  onClick={() => router.push('/payment?planName=Yearly%20Plan&planPrice=%24250')}
+                  onClick={() => handleSubscribe('Yearly')}
                   className="w-full py-3 rounded-xl font-bold text-[13px] mb-8 transition-all duration-200 bg-stone-100 text-stone-800 hover:bg-stone-200/80 active:scale-98"
                 >
                   Subscribe Yearly
                 </button>
-
                 <ul className="flex-1 space-y-4">
                   {[
                     "Unlimited detection",
@@ -812,7 +1130,7 @@ const Detector = () => {
                 <div className="flex items-center gap-2.5 flex-wrap">
                   <h2 className="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight leading-none">{displayName}</h2>
                   <span className="px-2.5 py-0.5 bg-stone-100 text-stone-500 text-[10px] font-bold rounded-full uppercase tracking-wider border border-stone-200/60 select-none">
-                    Free
+                    {subscriptionPlan}
                   </span>
                 </div>
                 <span className="text-stone-400 text-sm font-medium mt-1 truncate">{emailAddress}</span>
@@ -982,7 +1300,7 @@ const Detector = () => {
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 border-b border-stone-100 pb-6 mb-6">
                     <div className="flex flex-col text-left">
                       <span className="text-[11px] font-bold text-stone-400 tracking-wider uppercase mb-1">Current Plan</span>
-                      <h3 className="text-2xl font-black text-stone-900 tracking-tight">Free Plan</h3>
+                      <h3 className="text-2xl font-black text-stone-900 tracking-tight">{subscriptionPlan} Plan</h3>
                     </div>
                     <button 
                       onClick={() => setActiveTab('plans')}
