@@ -251,8 +251,8 @@ export default function PrivacyPolicy() {
               </p>
               <div className="p-6 rounded-2xl bg-stone-50 border border-stone-200/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                  <p className="font-extrabold text-stone-800">VeritasAI Privacy Operations</p>
-                  <p className="text-sm text-stone-500 mt-0.5">Narephat, Joshi Chowk, Kathmandu, Nepal</p>
+                  <p className="font-extrabold text-stone-800">Veritas AI</p>
+                  <p className="text-sm text-stone-500 mt-0.5">Nepal, Narephat joshi chowk</p>
                 </div>
                 <a 
                   href="mailto:privacy@veritasai.com"

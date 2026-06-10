@@ -93,10 +93,9 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-bold text-stone-900 text-[15px] mb-1">Nepal Office</h3>
-                  <p className="text-stone-500 text-xs font-medium mb-1">VeritasAI Nepal</p>
+                  <p className="text-stone-500 text-xs font-medium mb-1">Veritas AI</p>
                   <p className="text-stone-900 font-bold text-sm leading-relaxed">
-                    Narephat, Joshi Chowk<br />
-                    Kathmandu, Nepal
+                    Nepal, Narephat joshi chowk
                   </p>
                 </div>
               </div>

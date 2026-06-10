@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import emailjs from '@emailjs/browser';
 import { 
   ShieldCheck, Target, Users, GraduationCap, Shield, Plus, Minus, 
   Facebook, Linkedin, Twitter, ArrowRight, ArrowLeft, Check, Sparkles, X,
@@ -11,6 +12,8 @@ import {
   Redo, Type, Bold, Italic, Underline, MoreVertical, ChevronLeft, ChevronRight, 
   Lock, CheckCircle, Wallet, Landmark
 } from 'lucide-react';
+
+const CardIcon = CreditCard;
 
 import Card from '../components/ui/Card';
 import Toggle from '../components/ui/Toggle';
@@ -100,7 +103,7 @@ const AppLayout = ({ children, currentView, setCurrentView }) => {
           <button onClick={() => alert('Language selection is currently set to English.')} className="bg-white text-gray-800 text-sm font-semibold py-1.5 px-4 rounded-md shadow-sm hover:bg-gray-50 flex items-center h-[34px]">
             English
           </button>
-          <button onClick={() => alert('Feedback desk is currently offline.')} className="bg-white text-gray-800 text-sm font-semibold py-1.5 px-4 rounded-md shadow-sm hover:bg-gray-50 flex items-center h-[34px]">
+          <button onClick={() => setCurrentView('feedback')} className="bg-white text-gray-800 text-sm font-semibold py-1.5 px-4 rounded-md shadow-sm hover:bg-gray-50 flex items-center h-[34px]">
             Feedback
           </button>
           <button onClick={() => setCurrentView('landing')} className="bg-[#F36C3D] text-white text-sm font-semibold py-1.5 px-6 rounded-md shadow-sm hover:bg-opacity-90 flex items-center h-[34px] ml-1">
@@ -1870,14 +1873,17 @@ const ReportView = ({ setCurrentView, scanResults }) => {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
-          <Card className="flex-[2] min-h-[600px] flex flex-col p-6 bg-white border border-stone-200">
+          <Card className="flex-[2] flex flex-col p-6 bg-white border border-stone-200">
             <h3 className="text-xl font-bold text-gray-800 mb-6">Text Analysis Summary</h3>
-            <div className="flex-1 text-gray-700 leading-relaxed text-lg space-y-6">
+            <div className="flex-1 text-gray-600 leading-relaxed text-[15px] space-y-5">
               <p>
-                The provided text shows a high degree of <span className="bg-green-100 text-green-800 px-1 rounded font-semibold">structural diversity</span> typical of human-authored content. The sentence lengths vary significantly.
+                The provided text shows a high degree of <span className="bg-green-100 text-green-800 px-1.5 py-0.5 rounded font-semibold">structural diversity</span> typical of human-authored content. The sentence lengths vary significantly, and the word choice reflects a nuanced understanding of the subject matter.
               </p>
               <p>
-                However, certain paragraphs exhibit patterns often associated with Large Language Models. These are flagged in red/yellow highlights in the results view.
+                However, certain paragraphs exhibit <span className="bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded font-semibold">repetitive phrasings</span> often associated with Large Language Models. These patterns are particularly evident in the technical descriptions.
+              </p>
+              <p>
+                The misinformation detection engine flagged early portions of the text as having a <span className="bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded font-semibold">low risk</span>, mainly due to the alignment with established data points in our knowledge base.
               </p>
             </div>
           </Card>
@@ -1885,7 +1891,7 @@ const ReportView = ({ setCurrentView, scanResults }) => {
           <div className="flex-1 flex flex-col gap-6">
             <Card className="p-6 bg-white border border-stone-200">
               <h3 className="text-lg font-bold text-gray-800 mb-6 border-b border-gray-100 pb-4">Detection Breakdown</h3>
-              <div className="space-y-6">
+              <div className="space-y-5">
                 <div>
                   <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Model Used</p>
                   <p className="text-lg font-bold text-gray-800">VeritasAI BERT v2.0</p>
@@ -1894,16 +1900,20 @@ const ReportView = ({ setCurrentView, scanResults }) => {
                   <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Analysis Confidence</p>
                   <p className="text-lg font-bold text-gray-800">98.2%</p>
                 </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Risk Classification</p>
+                  <p className="text-lg font-bold text-[#1FA463] uppercase">Low Risk</p>
+                </div>
               </div>
             </Card>
 
-            <Card className="bg-[#1FA463] text-white flex flex-col items-center text-center py-10 p-6">
-              <h3 className="text-xl font-bold mb-2">Upgrade to Pro</h3>
-              <p className="text-white/80 text-sm mb-8 max-w-[200px]">Get access to advanced deepfake detection and API access.</p>
-              <button onClick={() => setCurrentView('subscription')} className="w-full bg-white hover:bg-gray-100 text-[#1FA463] py-3.5 rounded-xl font-bold transition cursor-pointer">
+            <div className="bg-[#1e3a5f] rounded-xl shadow-lg border border-[#2a4d72] flex flex-col items-center text-center py-10 px-6">
+              <h3 className="text-xl font-bold mb-2 text-white">Upgrade to Pro</h3>
+              <p className="text-blue-200/80 text-sm mb-8 max-w-[220px]">Get access to advanced deepfake detection and API access.</p>
+              <button onClick={() => setCurrentView('subscription')} className="w-full bg-white hover:bg-gray-50 text-[#1FA463] py-3.5 rounded-xl font-bold transition cursor-pointer shadow-md">
                 Upgrade Now
               </button>
-            </Card>
+            </div>
           </div>
         </div>
       </div>
@@ -1959,13 +1969,11 @@ const SubscriptionView = ({ setCurrentView }) => {
 
 // ─── Payment View ─────────────────────────────────────────────────────────────
 const PaymentView = ({ setCurrentView, planName, planPrice }) => {
-  const [activeTab, setActiveTab] = useState('card');
+  const [activeTab, setActiveTab] = useState('esewa');
 
   const tabs = [
-    { id: 'card', name: 'Credit Card', icon: CardIcon },
-    { id: 'debit', name: 'Debit Card', icon: CardIcon },
-    { id: 'paypal', name: 'Paypal', icon: Wallet },
-    { id: 'google', name: 'Google Pay', icon: Landmark },
+    { id: 'esewa', name: 'eSewa Wallet', icon: Wallet },
+    { id: 'banking', name: 'Mobile / Internet Banking', icon: Landmark },
   ];
 
   return (
@@ -2025,16 +2033,28 @@ const PaymentView = ({ setCurrentView, planName, planPrice }) => {
           </div>
 
           <Card className="flex-1 p-6 bg-white border border-stone-200">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="md:col-span-2">
-                <Input label="Cardholder Name" placeholder="John Doe" />
+            {activeTab === 'esewa' ? (
+              <div className="grid grid-cols-1 gap-6">
+                <div>
+                  <Input label="eSewa ID (Mobile Number)" placeholder="98XXXXXXXX" type="tel" />
+                </div>
+                <div>
+                  <Input label="Account Holder Name" placeholder="John Doe" />
+                </div>
               </div>
-              <div className="md:col-span-2">
-                <Input label="Card Number" placeholder="0000 0000 0000 0000" />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2">
+                  <Input label="Bank Name" placeholder="e.g. Nabil Bank, Global IME Bank" />
+                </div>
+                <div className="md:col-span-2">
+                  <Input label="Account Number" placeholder="123456789012" />
+                </div>
+                <div className="md:col-span-2">
+                  <Input label="Account Holder Name" placeholder="John Doe" />
+                </div>
               </div>
-              <Input label="Expiry Date" placeholder="MM/YY" />
-              <Input label="CVV" placeholder="123" />
-            </div>
+            )}
 
             <button className="w-full py-4 text-lg font-bold mt-10 bg-[#1FA463] hover:bg-[#178a52] text-white rounded-xl shadow cursor-pointer" onClick={() => alert('Payment Successful!')}>
               Complete Payment
@@ -2045,6 +2065,167 @@ const PaymentView = ({ setCurrentView, planName, planPrice }) => {
               <span>Secure encrypted payment via 256-bit SSL.</span>
             </div>
           </Card>
+        </div>
+      </div>
+    </AppLayout>
+  );
+};
+
+// ─── Feedback View ────────────────────────────────────────────────────────────
+const FeedbackView = ({ setCurrentView }) => {
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const whyChooseUsChecked = formData.getAll('why_choose_us');
+
+    const templateParams = {
+      hear_about_us: formData.get('hear_about_us') || '',
+      role: formData.get('role') || '',
+      ai_usage: formData.get('ai_usage') || '',
+      why_choose_us: whyChooseUsChecked.join(', '),
+    };
+
+    emailjs.send(
+      'service_98z4snm',
+      'template_r8cy4sw',
+      templateParams,
+      'cPgeihOtrEGV8iPwT'
+    )
+    .then((result) => {
+      console.log("EmailJS Success:", result.text);
+    })
+    .catch((error) => {
+      console.error("EmailJS Error:", error);
+    });
+
+    setIsSubmitted(true);
+    setTimeout(() => {
+      setCurrentView('dashboard');
+    }, 2000);
+  };
+
+  return (
+    <AppLayout currentView="feedback" setCurrentView={setCurrentView}>
+      <div className="max-w-2xl mx-auto pt-8 mb-16 text-left">
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+          
+          <div className="bg-[#1FA463] px-8 py-6 text-center">
+            <h1 className="text-2xl font-bold text-white tracking-tight">Tell Us About Yourself</h1>
+            <p className="text-white/80 text-sm mt-2">Your feedback helps us improve VeritasAI.</p>
+          </div>
+
+          {!isSubmitted ? (
+            <form className="p-8 flex flex-col gap-8" onSubmit={handleSubmit}>
+              
+              {/* Question 1 */}
+              <div className="flex flex-col gap-3">
+                <label className="text-sm font-bold text-gray-800">
+                  1. Where did you hear about us? <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    required
+                    name="hear_about_us"
+                    defaultValue=""
+                    className="w-full px-4 py-3 rounded-xl border border-stone-200 bg-[#F9FAFB] text-gray-700 appearance-none focus:outline-none focus:ring-2 focus:ring-[#1FA463]/30 focus:border-[#1FA463] hover:border-gray-300 transition-all cursor-pointer shadow-sm"
+                  >
+                    <option value="" disabled>Select an option</option>
+                    <option value="social_media">Social Media (Twitter, LinkedIn, etc.)</option>
+                    <option value="search_engine">Search Engine (Google, Bing)</option>
+                    <option value="friend">Friend / Colleague</option>
+                    <option value="university">University / School</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-gray-400">
+                    ▼
+                  </div>
+                </div>
+              </div>
+
+              {/* Question 2 */}
+              <div className="flex flex-col gap-3">
+                <label className="text-sm font-bold text-gray-800">
+                  2. Are you a student, teacher, or writer? <span className="text-red-500">*</span>
+                </label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <label className="flex-1 cursor-pointer border border-stone-200 rounded-xl bg-[#F9FAFB] hover:border-[#1FA463] transition-all p-4 flex items-center gap-3">
+                    <input type="radio" name="role" value="student" className="w-4 h-4 text-[#1FA463] focus:ring-[#1FA463]" required />
+                    <span className="text-sm font-semibold text-gray-700">Student</span>
+                  </label>
+                  <label className="flex-1 cursor-pointer border border-stone-200 rounded-xl bg-[#F9FAFB] hover:border-[#1FA463] transition-all p-4 flex items-center gap-3">
+                    <input type="radio" name="role" value="teacher" className="w-4 h-4 text-[#1FA463] focus:ring-[#1FA463]" />
+                    <span className="text-sm font-semibold text-gray-700">Teacher</span>
+                  </label>
+                  <label className="flex-1 cursor-pointer border border-stone-200 rounded-xl bg-[#F9FAFB] hover:border-[#1FA463] transition-all p-4 flex items-center gap-3">
+                    <input type="radio" name="role" value="writer" className="w-4 h-4 text-[#1FA463] focus:ring-[#1FA463]" />
+                    <span className="text-sm font-semibold text-gray-700">Writer</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Question 3 */}
+              <div className="flex flex-col gap-3">
+                <label className="text-sm font-bold text-gray-800">
+                  3. Have you used AI tools before? <span className="text-red-500">*</span>
+                </label>
+                <div className="flex gap-4">
+                  <label className="cursor-pointer border border-stone-200 rounded-xl bg-[#F9FAFB] hover:border-[#1FA463] transition-all px-8 py-3 flex items-center gap-3">
+                    <input type="radio" name="ai_usage" value="yes" className="w-4 h-4 text-[#1FA463] focus:ring-[#1FA463]" required />
+                    <span className="text-sm font-semibold text-gray-700">Yes</span>
+                  </label>
+                  <label className="cursor-pointer border border-stone-200 rounded-xl bg-[#F9FAFB] hover:border-[#1FA463] transition-all px-8 py-3 flex items-center gap-3">
+                    <input type="radio" name="ai_usage" value="no" className="w-4 h-4 text-[#1FA463] focus:ring-[#1FA463]" />
+                    <span className="text-sm font-semibold text-gray-700">No</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Question 4 */}
+              <div className="flex flex-col gap-3">
+                <label className="text-sm font-bold text-gray-800">
+                  4. Why did you choose us? <span className="text-gray-500 font-normal ml-1">(Select all that apply)</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {[
+                    "Fast results",
+                    "Easy to use",
+                    "Modern AI technology",
+                    "Supports students and writers",
+                    "Clean interface"
+                  ].map((reason, index) => (
+                    <label key={index} className="cursor-pointer border border-stone-200 rounded-xl bg-[#F9FAFB] hover:border-[#1FA463] transition-all px-4 py-3 flex items-center gap-3">
+                      <input type="checkbox" name="why_choose_us" value={reason} className="w-4 h-4 text-[#1FA463] focus:ring-[#1FA463] rounded" />
+                      <span className="text-sm font-semibold text-gray-700">{reason}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="mt-4">
+                <button
+                  type="submit"
+                  className="w-full py-3.5 rounded-xl bg-[#1FA463] hover:bg-[#178a52] text-white font-bold transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-[2px] active:scale-[0.98] cursor-pointer"
+                >
+                  Submit Survey
+                </button>
+              </div>
+
+            </form>
+          ) : (
+            <div className="p-16 flex flex-col items-center justify-center text-center gap-4">
+              <div className="w-16 h-16 bg-[#1FA463]/10 rounded-full flex items-center justify-center mb-2">
+                <span className="text-3xl">🎉</span>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-800">Thank You!</h2>
+              <p className="text-gray-500 max-w-sm mb-4">
+                Your feedback has been submitted successfully. Taking you back to the dashboard...
+              </p>
+            </div>
+          )}
+
         </div>
       </div>
     </AppLayout>
@@ -2103,6 +2284,8 @@ export default function Home() {
       return <ReportView setCurrentView={setCurrentView} scanResults={scanResults} />;
     case 'subscription':
       return <SubscriptionView setCurrentView={setCurrentView} />;
+    case 'feedback':
+      return <FeedbackView setCurrentView={setCurrentView} />;
     
     // Checkout Views
     case 'checkout-weekly':
@@ -2127,7 +2310,13 @@ export default function Home() {
           VeritasAI follows a standard procedure of using log files to log visitors when they use the app.
           
           3. Consent
-          By using our website, you hereby consent to our Privacy Policy and agree to its terms.`} 
+          By using our website, you hereby consent to our Privacy Policy and agree to its terms.
+          
+          4. Contact Us
+          If you have any questions about this Privacy Policy, you can contact us at:
+          Veritas AI
+          Nepal, Narephat joshi chowk
+          Email: privacy@veritasai.com`} 
         />
       );
     case 'terms':
@@ -2146,7 +2335,13 @@ export default function Home() {
           You must not republish, sell, rent, sub-license, reproduce, duplicate, or copy material from VeritasAI.
           
           3. Disclaimer
-          To the maximum extent permitted by applicable law, we exclude all representations, warranties, and conditions relating to our website and the use of this website.`} 
+          To the maximum extent permitted by applicable law, we exclude all representations, warranties, and conditions relating to our website and the use of this website.
+          
+          4. Contact Us
+          If you have any questions about these Terms, please contact us at:
+          Veritas AI
+          Nepal, Narephat joshi chowk
+          Email: terms@veritasai.com`} 
         />
       );
     case 'contact':
@@ -2158,7 +2353,7 @@ export default function Home() {
           
           Email: support@veritasai.com
           Phone: +977-1-4444444
-          Address: Kathmandu, Nepal
+          Address: Veritas AI, Nepal, Narephat joshi chowk
           
           Our customer service desk is open Monday to Friday, 9:00 AM to 5:00 PM.`} 
         />
