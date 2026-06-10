@@ -180,7 +180,7 @@ export default function Login() {
               <button
                 id="login-register"
                 type="button"
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push('/register')}
                 className="flex-1 py-2.5 rounded-full bg-[#F36C3D] hover:bg-[#e05a2b] text-white font-bold transition-all duration-200 shadow-sm hover:shadow-md active:scale-95"
               >
                 Register
