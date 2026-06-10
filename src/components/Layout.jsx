@@ -1,5 +1,6 @@
 import React from 'react';
 import Navbar from './Navbar';
+import Link from 'next/link';
 
 import { ShieldCheck } from 'lucide-react';
 
@@ -14,15 +15,15 @@ const Layout = ({ children }) => {
       {/* Footer matching exactly from the design text image */}
       <footer className="mt-10 py-12 flex flex-col items-center justify-center text-center">
         <div className="flex gap-6 text-[13px] text-gray-400 font-semibold mb-8">
-          <a href="#" className="hover:text-gray-600">Privacy Policy</a>
-          <a href="#" className="hover:text-gray-600">Terms of Service</a>
-          <a href="#" className="hover:text-gray-600">Contact Support</a>
+          <Link href="/privacy" className="hover:text-gray-600">Privacy Policy</Link>
+          <Link href="/terms" className="hover:text-gray-600">Terms of Service</Link>
+          <Link href="/contact" className="hover:text-gray-600">Contact Support</Link>
         </div>
         <div className="flex items-center gap-2 mb-3">
           <ShieldCheck size={20} className="text-[#1FA463]" />
           <span className="font-bold text-gray-500 text-[15px]">VeritasAI</span>
         </div>
-        <p className="text-[#9ca3af] text-[11px] font-medium">© 2024 VeritasAI. All rights reserved.</p>
+        <p className="text-[#9ca3af] text-[11px] font-medium">© 2026 VeritasAI. All rights reserved.</p>
       </footer>
     </div>
   );

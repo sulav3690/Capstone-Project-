@@ -30,7 +30,10 @@ const Navbar = () => {
         <button onClick={() => router.push('/feedback')} className="bg-white text-gray-800 text-sm font-semibold py-1.5 px-4 rounded-md shadow-sm hover:bg-gray-50 flex items-center h-[34px]">
           Feedback
         </button>
-        <button onClick={() => router.push('/login')} className="bg-[#F36C3D] text-white text-sm font-semibold py-1.5 px-6 rounded-md shadow-sm hover:bg-opacity-90 flex items-center h-[34px] ml-1">
+        <button onClick={() => {
+          localStorage.removeItem('veritas_onboarding_completed');
+          router.push('/login');
+        }} className="bg-[#F36C3D] text-white text-sm font-semibold py-1.5 px-6 rounded-md shadow-sm hover:bg-opacity-90 flex items-center h-[34px] ml-1">
           Logout
         </button>
       </div>
