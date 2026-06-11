@@ -2,25 +2,25 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Upload, 
-  AlertCircle, 
-  ShieldCheck, 
-  LayoutDashboard, 
-  User, 
-  CreditCard, 
-  HelpCircle, 
-  LifeBuoy, 
-  MessageSquare, 
-  LogOut, 
-  Clipboard, 
-  Undo, 
-  Redo, 
-  Type, 
-  Bold, 
-  Italic, 
-  Underline, 
-  Link, 
+import {
+  Upload,
+  AlertCircle,
+  ShieldCheck,
+  LayoutDashboard,
+  User,
+  CreditCard,
+  HelpCircle,
+  LifeBuoy,
+  MessageSquare,
+  LogOut,
+  Clipboard,
+  Undo,
+  Redo,
+  Type,
+  Bold,
+  Italic,
+  Underline,
+  Link,
   MoreVertical,
   ChevronLeft,
   ChevronRight,
@@ -31,7 +31,8 @@ import {
   ArrowRight,
   ArrowLeft,
   X,
-  CheckCircle
+  CheckCircle,
+  Lock
 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Toggle from '../../components/ui/Toggle';
@@ -136,13 +137,13 @@ const Detector = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [openFaqIndices, setOpenFaqIndices] = useState([]);
   const { showToast } = useToast();
-  
+
   // App features state
   const [subscriptionPlan, setSubscriptionPlan] = useState('Free');
   const [showResults, setShowResults] = useState(false);
   const [resultsData, setResultsData] = useState(null);
   const [segments, setSegments] = useState([]);
-  
+
   // Account subview states
   const [accountSubTab, setAccountSubTab] = useState('general');
   const [displayName, setDisplayName] = useState('Sulav Sharma');
@@ -150,7 +151,7 @@ const Detector = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  
+
   const fileInputRef = useRef(null);
   const editorRef = useRef(null);
   const resultsRef = useRef(null);
@@ -370,7 +371,7 @@ const Detector = () => {
   const handleFormat = (command, value = null) => {
     if (!editorRef.current) return;
     editorRef.current.focus();
-    
+
     if (command === 'createLink') {
       const url = prompt('Enter the link URL:');
       if (url) {
@@ -379,7 +380,7 @@ const Detector = () => {
     } else {
       document.execCommand(command, false, value);
     }
-    
+
     const textVal = editorRef.current.innerText || '';
     checkAndResetResults(textVal);
   };
@@ -453,12 +454,11 @@ const Detector = () => {
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] flex font-sans text-stone-800">
-      
+
       {/* Left Sidebar */}
-      <aside className={`bg-[#FDFBF7] border-r border-stone-200/60 flex flex-col justify-between shrink-0 h-screen sticky top-0 z-30 transition-all duration-300 ease-in-out relative ${
-        isSidebarCollapsed ? 'w-16' : 'w-64'
-      }`}>
-        
+      <aside className={`bg-[#FDFBF7] border-r border-stone-200/60 flex flex-col justify-between shrink-0 h-screen sticky top-0 z-30 transition-all duration-300 ease-in-out relative ${isSidebarCollapsed ? 'w-16' : 'w-64'
+        }`}>
+
         {/* Toggle Collapse Button */}
         <button
           onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -474,7 +474,7 @@ const Detector = () => {
 
         <div className={`flex flex-col gap-6 py-6 transition-all duration-300 ${isSidebarCollapsed ? 'px-3 items-center' : 'px-6'}`}>
           {/* Logo / Brand */}
-          <div 
+          <div
             onClick={() => router.push('/')}
             className={`flex items-center gap-3 w-full cursor-pointer hover:opacity-80 transition-all ${isSidebarCollapsed ? 'justify-center' : ''}`}
             title="Go to Homepage"
@@ -491,30 +491,26 @@ const Detector = () => {
 
           {/* Navigation Links */}
           <nav className="flex flex-col gap-6 mt-4 w-full">
-            <button 
+            <button
               onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all w-full text-left ${
-                activeTab === 'dashboard'
+              className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all w-full text-left ${activeTab === 'dashboard'
                   ? 'bg-stone-900 text-white shadow-sm font-semibold'
                   : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
-              } ${
-                isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2.5'
-              }`}
+                } ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2.5'
+                }`}
               title="Dashboard"
             >
               <LayoutDashboard size={18} className="shrink-0" />
               {!isSidebarCollapsed && <span className="truncate">Dashboard</span>}
             </button>
 
-            <button 
+            <button
               onClick={() => setActiveTab('detector')}
-              className={`flex items-center gap-3 rounded-xl text-sm transition-all w-full text-left ${
-                activeTab === 'detector'
+              className={`flex items-center gap-3 rounded-xl text-sm transition-all w-full text-left ${activeTab === 'detector'
                   ? 'bg-stone-900 text-white shadow-sm font-semibold'
                   : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
-              } ${
-                isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2.5'
-              }`}
+                } ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2.5'
+                }`}
               title="AI Content Detector"
             >
               <ShieldCheck size={18} className="shrink-0" />
@@ -526,29 +522,25 @@ const Detector = () => {
               {!isSidebarCollapsed && (
                 <span className="text-xs font-bold text-stone-400/80 tracking-wider uppercase px-4 whitespace-nowrap">Account</span>
               )}
-              <button 
+              <button
                 onClick={() => setActiveTab('account')}
-                className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all text-left w-full ${
-                  activeTab === 'account'
+                className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all text-left w-full ${activeTab === 'account'
                     ? 'bg-stone-900 text-white shadow-sm font-semibold'
                     : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
-                } ${
-                  isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
-                }`}
+                  } ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
+                  }`}
                 title="Account"
               >
                 <User size={18} className="shrink-0" />
                 {!isSidebarCollapsed && <span className="truncate">Account</span>}
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab('plans')}
-                className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all text-left w-full ${
-                  activeTab === 'plans'
+                className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all text-left w-full ${activeTab === 'plans'
                     ? 'bg-stone-900 text-white shadow-sm font-semibold'
                     : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
-                } ${
-                  isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
-                }`}
+                  } ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
+                  }`}
                 title="Plans & Pricing"
               >
                 <CreditCard size={18} className="shrink-0" />
@@ -561,35 +553,31 @@ const Detector = () => {
               {!isSidebarCollapsed && (
                 <span className="text-xs font-bold text-stone-400/80 tracking-wider uppercase px-4 whitespace-nowrap">Help</span>
               )}
-              <button 
+              <button
                 onClick={() => setActiveTab('faq')}
-                className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all text-left w-full ${
-                  activeTab === 'faq'
+                className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all text-left w-full ${activeTab === 'faq'
                     ? 'bg-stone-900 text-white shadow-sm font-semibold'
                     : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
-                } ${
-                  isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
-                }`}
+                  } ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
+                  }`}
                 title="FAQ"
               >
                 <HelpCircle size={18} className="shrink-0" />
                 {!isSidebarCollapsed && <span className="truncate">FAQ</span>}
               </button>
-              <button 
+              <button
                 onClick={() => showToast('Support desk is currently under maintenance.', 'error')}
-                className={`flex items-center gap-3 text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 rounded-xl font-medium text-[15.5px] transition-all text-left w-full ${
-                  isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
-                }`}
+                className={`flex items-center gap-3 text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 rounded-xl font-medium text-[15.5px] transition-all text-left w-full ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
+                  }`}
                 title="Support"
               >
                 <LifeBuoy size={18} className="shrink-0" />
                 {!isSidebarCollapsed && <span className="truncate">Support</span>}
               </button>
-              <button 
+              <button
                 onClick={() => window.open('https://discord.gg/YwGVj2V5Qk', '_blank')}
-                className={`flex items-center gap-3 text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 rounded-xl font-medium text-[15.5px] transition-all text-left w-full ${
-                  isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
-                }`}
+                className={`flex items-center gap-3 text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 rounded-xl font-medium text-[15.5px] transition-all text-left w-full ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
+                  }`}
                 title="Discord"
               >
                 <MessageSquare size={18} className="shrink-0" />
@@ -601,10 +589,10 @@ const Detector = () => {
 
         {/* Profile Card / Footer inside Sidebar */}
         <div className={`p-4 border-t border-stone-200/60 flex flex-col gap-3 transition-all duration-300 ${isSidebarCollapsed ? 'items-center px-2' : ''}`}>
-          
+
           {isSidebarCollapsed ? (
             /* Collapsed State: Just the avatar with green status dot */
-            <button 
+            <button
               onClick={() => setActiveTab('account')}
               className="relative cursor-pointer hover:scale-105 transition-all w-10 h-10 rounded-full bg-gradient-to-br from-[#7755FF] to-[#4F33FF] flex items-center justify-center text-white font-bold text-[15px] shadow-sm border-none outline-none shrink-0"
               title={`${displayName} - ${subscriptionPlan} Plan (Click to settings)`}
@@ -615,9 +603,9 @@ const Detector = () => {
           ) : (
             /* Expanded State: Creamy Glass User Card (Warm Beige Sand Contrast) */
             <div className="w-full bg-[#EBE5D8]/80 backdrop-blur-[10px] border border-stone-300/60 shadow-[inset_4px_4px_12px_rgba(255,255,255,0.75),inset_-2px_-2px_6px_rgba(0,0,0,0.015),0_10px_25px_rgba(28,25,23,0.02)] p-4 rounded-2xl flex flex-col gap-3.5 text-stone-800 select-none">
-              
+
               {/* Profile Details */}
-              <div 
+              <div
                 onClick={() => setActiveTab('account')}
                 className="flex items-center gap-3 cursor-pointer hover:opacity-90 transition text-left"
               >
@@ -628,7 +616,7 @@ const Detector = () => {
                   {/* Green status dot */}
                   <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-[#22C55E] ring-2 ring-[#EDE7DC]"></span>
                 </div>
-                
+
                 <div className="flex flex-col min-w-0">
                   <span className="font-extrabold text-[14px] tracking-tight truncate text-stone-900 leading-none mb-0.5">{displayName}</span>
                   <span className="text-stone-500 text-[11px] font-semibold truncate leading-none">@{displayName.toLowerCase().replace(/\s+/g, '_')}</span>
@@ -637,20 +625,20 @@ const Detector = () => {
               {/* Action Buttons inside Card */}
               <div className="flex flex-col gap-2">
                 {/* Upgrade Button */}
-                <button 
+                <button
                   onClick={() => handleSubscribe('Monthly')}
                   className="w-full py-1.5 pl-1.5 pr-4 bg-stone-950/5 hover:bg-stone-950/10 active:scale-98 border border-stone-900/5 rounded-full flex items-center gap-2.5 transition-all cursor-pointer text-left shadow-sm"
                 >
                   <div className="w-6 h-6 rounded-full bg-slate-950 flex items-center justify-center shrink-0">
                     <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+                      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
                     </svg>
                   </div>
                   <span className="text-[11px] font-bold text-stone-800 tracking-wide">Upgrade Now</span>
                 </button>
 
                 {/* Logout Button inside the Card */}
-                <button 
+                <button
                   onClick={() => {
                     safeLocalStorage.removeItem('veritas_onboarding_completed');
                     router.push('/login');
@@ -725,7 +713,7 @@ const Detector = () => {
                 <span className="text-[11px] font-bold text-stone-400 uppercase tracking-widest">Current Plan</span>
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-lg font-black text-stone-800 tracking-tight">{subscriptionPlan} Plan</span>
-                  <button 
+                  <button
                     onClick={() => setActiveTab('plans')}
                     className="text-xs font-bold text-[#7755FF] hover:underline"
                   >
@@ -740,7 +728,7 @@ const Detector = () => {
 
             {/* User Profile Insights & Recent Scans */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-              
+
               {/* Onboarding Survey profile summary */}
               <div className="bg-white border border-stone-200/50 rounded-[32px] p-6 md:p-8 shadow-[0_15px_40px_rgba(28,25,23,0.015)] flex flex-col gap-6">
                 <div>
@@ -793,7 +781,7 @@ const Detector = () => {
                     <h3 className="text-lg font-bold text-stone-900 mb-1">Recent Activity</h3>
                     <p className="text-stone-400 text-xs font-medium">Your most recent scans.</p>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setActiveTab('detector')}
                     className="text-xs font-bold text-[#7755FF] hover:underline"
                   >
@@ -818,11 +806,10 @@ const Detector = () => {
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className={`text-[11px] font-extrabold px-2.5 py-1 rounded-full ${
-                          scan.score > 50 
-                            ? 'bg-amber-50 text-amber-600 border border-amber-100' 
+                        <span className={`text-[11px] font-extrabold px-2.5 py-1 rounded-full ${scan.score > 50
+                            ? 'bg-amber-50 text-amber-600 border border-amber-100'
                             : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                        }`}>
+                          }`}>
                           {scan.score}% AI
                         </span>
                       </div>
@@ -884,7 +871,7 @@ const Detector = () => {
 
                 {/* Toolbar + Upload + Word Count */}
                 <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                  
+
                   {/* File Upload Trigger */}
                   <div className="flex items-center">
                     <button
@@ -906,25 +893,25 @@ const Detector = () => {
 
                   {/* Functional Rich-Text Formatting Toolbar */}
                   <div className="flex items-center gap-2 border border-stone-200/60 bg-stone-50/50 rounded-xl px-3.5 py-2 shadow-sm self-center sm:self-auto">
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={handlePasteClick}
-                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors" 
+                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
                       title="Paste from clipboard"
                     >
                       <Clipboard size={22} />
                     </button>
                     <div className="w-px h-6 bg-stone-200 mx-2"></div>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => handleFormat('undo')}
                       className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
                       title="Undo"
                     >
                       <Undo size={22} />
                     </button>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => handleFormat('redo')}
                       className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
                       title="Redo"
@@ -932,51 +919,51 @@ const Detector = () => {
                       <Redo size={22} />
                     </button>
                     <div className="w-px h-6 bg-stone-200 mx-2"></div>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => showToast('Text formatting options', 'success')}
-                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors" 
+                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
                       title="Text Size"
                     >
                       <Type size={22} />
                     </button>
                     <div className="w-px h-6 bg-stone-200 mx-2"></div>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => handleFormat('bold')}
-                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors font-bold" 
+                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors font-bold"
                       title="Bold"
                     >
                       <Bold size={22} />
                     </button>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => handleFormat('italic')}
-                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors italic" 
+                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors italic"
                       title="Italic"
                     >
                       <Italic size={22} />
                     </button>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => handleFormat('underline')}
-                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors underline" 
+                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors underline"
                       title="Underline"
                     >
                       <Underline size={22} />
                     </button>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => handleFormat('createLink')}
-                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors" 
+                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
                       title="Insert Link"
                     >
                       <Link size={22} />
                     </button>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => showToast('More editing options', 'success')}
-                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors" 
+                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
                       title="More options"
                     >
                       <MoreVertical size={22} />
@@ -985,11 +972,10 @@ const Detector = () => {
 
                   {/* Word Count Pill */}
                   <div className="flex items-center justify-end">
-                    <span className={`text-[16.5px] font-semibold px-5 py-2.5 rounded-full border ${
-                      wordCount > MAX_WORDS
+                    <span className={`text-[16.5px] font-semibold px-5 py-2.5 rounded-full border ${wordCount > MAX_WORDS
                         ? 'bg-red-50 text-red-500 border-red-200'
                         : 'bg-stone-100 text-stone-500 border-stone-200/60'
-                    }`}>
+                      }`}>
                       {wordCount} / {MAX_WORDS} words
                     </span>
                   </div>
@@ -1011,11 +997,10 @@ const Detector = () => {
                 id="analyze-btn"
                 onClick={handleAnalyze}
                 disabled={isAnalyzing || wordCount > MAX_WORDS}
-                className={`px-16 py-5 text-xl font-bold rounded-xl text-white shadow-md hover:shadow-lg active:scale-98 transition-all duration-200 ${
-                  isAnalyzing || wordCount > MAX_WORDS
+                className={`px-16 py-5 text-xl font-bold rounded-xl text-white shadow-md hover:shadow-lg active:scale-98 transition-all duration-200 ${isAnalyzing || wordCount > MAX_WORDS
                     ? 'bg-stone-300 cursor-not-allowed text-stone-500'
                     : 'bg-[#1FA463] hover:bg-[#178a52] hover:-translate-y-0.5 shadow-[#1FA463]/25'
-                }`}
+                  }`}
               >
                 {isAnalyzing ? (
                   <span className="flex items-center gap-3">
@@ -1058,7 +1043,7 @@ const Detector = () => {
 
                     {/* Dual detection results card */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
-                      
+
                       {/* 1. AI Generated Detection Card */}
                       {aiDetection ? (
                         <div className="bg-white border border-stone-200/50 rounded-3xl p-6 sm:p-8 flex flex-col justify-between shadow-sm transition hover:shadow-md">
@@ -1066,17 +1051,17 @@ const Detector = () => {
                             <span className="text-[11px] font-extrabold text-stone-400 uppercase tracking-wider block mb-1">AI Generated Detection</span>
                             <h3 className="text-lg font-bold text-stone-900">Overall Authenticity</h3>
                           </div>
-                          
+
                           <div className="flex flex-col items-center mb-6">
                             {/* Authenticity Gauge */}
                             <div className="w-28 h-28 rounded-full border-8 border-stone-100 flex flex-col items-center justify-center relative shadow-sm mb-4">
                               <span className="text-3xl font-black text-[#1FA463]">{resultsData.authenticity}%</span>
                               <span className="text-[10px] font-bold text-stone-400 uppercase">Human</span>
                             </div>
-                            
+
                             {/* Simple Progress Bar */}
                             <div className="w-full h-2 bg-stone-100 rounded-full mb-6">
-                              <div 
+                              <div
                                 className="h-full rounded-full bg-[#1FA463] transition-all duration-1000"
                                 style={{ width: `${resultsData.authenticity}%` }}
                               />
@@ -1113,30 +1098,28 @@ const Detector = () => {
                             <span className="text-[11px] font-extrabold text-stone-400 uppercase tracking-wider block mb-1">Misinformation Signals</span>
                             <h3 className="text-lg font-bold text-stone-900">Factcheck Integrity</h3>
                           </div>
-                          
+
                           <div className="flex flex-col items-center mb-6">
                             {/* Misinformation Risk Gauge */}
                             <div className="w-28 h-28 rounded-full border-8 border-stone-100 flex flex-col items-center justify-center relative shadow-sm mb-4">
-                              <span className={`text-2xl font-black uppercase ${
-                                resultsData.misinfoRisk === 'High' 
-                                  ? 'text-red-500' 
-                                  : resultsData.misinfoRisk === 'Medium' 
-                                    ? 'text-amber-500' 
+                              <span className={`text-2xl font-black uppercase ${resultsData.misinfoRisk === 'High'
+                                  ? 'text-red-500'
+                                  : resultsData.misinfoRisk === 'Medium'
+                                    ? 'text-amber-500'
                                     : 'text-[#1FA463]'
-                              }`}>{resultsData.misinfoRisk}</span>
+                                }`}>{resultsData.misinfoRisk}</span>
                               <span className="text-[10px] font-bold text-stone-400 uppercase">Risk</span>
                             </div>
-                            
+
                             {/* Simple Progress Bar */}
                             <div className="w-full h-2 bg-stone-100 rounded-full mb-6">
-                              <div 
-                                className={`h-full rounded-full transition-all duration-1000 ${
-                                  resultsData.misinfoRisk === 'High' 
-                                    ? 'bg-red-500' 
-                                    : resultsData.misinfoRisk === 'Medium' 
-                                      ? 'bg-amber-500' 
+                              <div
+                                className={`h-full rounded-full transition-all duration-1000 ${resultsData.misinfoRisk === 'High'
+                                    ? 'bg-red-500'
+                                    : resultsData.misinfoRisk === 'Medium'
+                                      ? 'bg-amber-500'
                                       : 'bg-[#1FA463]'
-                                }`}
+                                  }`}
                                 style={{ width: resultsData.misinfoRisk === 'High' ? '90%' : resultsData.misinfoRisk === 'Medium' ? '50%' : '15%' }}
                               />
                             </div>
@@ -1174,7 +1157,7 @@ const Detector = () => {
                     {/* Advanced Sentence Scanning Section (Blurred Paywall) */}
                     <div className="w-full text-left mt-8">
                       <Card className="bg-white border border-stone-200/40 shadow-[0_15px_45px_rgba(28,25,23,0.02)] p-6 sm:p-8 rounded-3xl relative overflow-hidden">
-                        
+
                         <div className="flex items-center gap-2 mb-4">
                           <h3 className="text-lg font-bold text-stone-900 font-sans">Advanced Sentence Scanning</h3>
                           {subscriptionPlan === 'Free' && (
@@ -1183,7 +1166,7 @@ const Detector = () => {
                             </span>
                           )}
                         </div>
-                        
+
                         <p className="text-stone-400 text-xs font-semibold mb-6">
                           Understand how each sentence impacts AI probabilities and factcheck metrics.
                         </p>
@@ -1200,7 +1183,7 @@ const Detector = () => {
                               </span>
                             ))}
                           </div>
-                          
+
                           {/* Legend for sentences */}
                           <div className="flex flex-wrap gap-4 items-center border-t border-stone-100 pt-4 mt-6">
                             <div className="flex items-center gap-2">
@@ -1265,7 +1248,7 @@ const Detector = () => {
 
             {/* Plan Cards list - styled cleanly with custom HSL borders, shadows and colors */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-[1100px] items-stretch text-left">
-              
+
               {/* Weekly Plan */}
               <div className="relative flex flex-col h-full bg-white rounded-3xl p-8 border border-stone-200/60 shadow-[0_15px_40px_rgba(28,25,23,0.015)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_20px_50px_rgba(28,25,23,0.03)]">
                 <div className="mb-6 text-left">
@@ -1302,7 +1285,7 @@ const Detector = () => {
 
               {/* Monthly Plan (Highlighted) */}
               <div className="relative flex flex-col h-full bg-white rounded-3xl p-8 border-2 border-[#1FA463] shadow-[0_25px_60px_rgba(31,164,99,0.08)] pt-11 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_30px_70px_rgba(31,164,99,0.12)]">
-                
+
                 {/* Most Popular Badge */}
                 <span className="absolute -top-[14px] left-1/2 -translate-x-1/2 px-4 py-[6px] bg-[#1FA463] text-white text-[10px] font-extrabold rounded-full uppercase tracking-wider whitespace-nowrap z-10 shadow-sm shadow-[#1FA463]/30">
                   Most Popular
@@ -1396,13 +1379,12 @@ const Detector = () => {
               {faqs.map((faq, index) => {
                 const isOpen = openFaqIndices.includes(index);
                 return (
-                  <div 
-                    key={index} 
-                    className={`border bg-white rounded-2xl overflow-hidden transition-all duration-300 w-full ${
-                      isOpen 
-                        ? 'border-[#1FA463]/35 shadow-[0_10px_30px_rgba(31,164,99,0.025)]' 
+                  <div
+                    key={index}
+                    className={`border bg-white rounded-2xl overflow-hidden transition-all duration-300 w-full ${isOpen
+                        ? 'border-[#1FA463]/35 shadow-[0_10px_30px_rgba(31,164,99,0.025)]'
                         : 'border-stone-200/80 shadow-[0_4px_20px_rgba(28,25,23,0.015)]'
-                    } hover:border-[#1FA463] hover:shadow-[0_12px_40px_rgba(31,164,99,0.05)]`}
+                      } hover:border-[#1FA463] hover:shadow-[0_12px_40px_rgba(31,164,99,0.05)]`}
                   >
                     <button
                       type="button"
@@ -1414,11 +1396,10 @@ const Detector = () => {
                         {isOpen ? <Minus size={20} strokeWidth={2.5} /> : <Plus size={20} strokeWidth={2.5} />}
                       </span>
                     </button>
-                    
-                    <div 
-                      className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                        isOpen ? 'max-h-[300px] border-t border-stone-100 opacity-100' : 'max-h-0 opacity-0'
-                      }`}
+
+                    <div
+                      className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-[300px] border-t border-stone-100 opacity-100' : 'max-h-0 opacity-0'
+                        }`}
                     >
                       <p className="p-6 text-stone-600 text-sm leading-relaxed font-medium bg-[#FCFAF7]">
                         {faq.answer}
@@ -1463,11 +1444,10 @@ const Detector = () => {
                   <button
                     key={tab.id}
                     onClick={() => setAccountSubTab(tab.id)}
-                    className={`flex items-center gap-2 pb-3.5 px-1 text-sm font-semibold tracking-tight transition-all relative cursor-pointer select-none ${
-                      isActive 
+                    className={`flex items-center gap-2 pb-3.5 px-1 text-sm font-semibold tracking-tight transition-all relative cursor-pointer select-none ${isActive
                         ? 'text-stone-900 border-b-2 border-stone-900 font-bold'
                         : 'text-stone-400 hover:text-stone-700'
-                    }`}
+                      }`}
                   >
                     <TabIcon size={16} />
                     {tab.label}
@@ -1482,12 +1462,12 @@ const Detector = () => {
                 <div className="w-full bg-white border border-stone-200/50 shadow-[0_15px_45px_rgba(28,25,23,0.02)] rounded-3xl p-8 sm:p-9 text-left">
                   <h3 className="text-lg font-bold text-stone-900 mb-1">General Information</h3>
                   <p className="text-stone-400 text-[13px] font-medium mb-6">Update your display name and personal details</p>
-                  
+
                   <form onSubmit={handleSaveGeneral} className="space-y-6">
                     <div className="flex flex-col gap-2">
                       <label className="text-[11px] font-extrabold text-stone-500 uppercase tracking-wider">Display Name</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}
                         className="w-full bg-stone-50/50 border border-stone-200/80 focus:ring-2 focus:ring-[#1FA463]/30 focus:border-[#1FA463] focus:outline-none text-stone-800 rounded-xl px-4 py-2.5 text-[14px] font-medium transition"
@@ -1497,8 +1477,8 @@ const Detector = () => {
 
                     <div className="flex flex-col gap-2">
                       <label className="text-[11px] font-extrabold text-stone-500 uppercase tracking-wider">Email Address</label>
-                      <input 
-                        type="email" 
+                      <input
+                        type="email"
                         value={emailAddress}
                         disabled
                         className="w-full bg-stone-100/60 border border-stone-200/60 text-stone-400 cursor-not-allowed rounded-xl px-4 py-2.5 text-[14px] font-medium"
@@ -1507,7 +1487,7 @@ const Detector = () => {
                     </div>
 
                     <div className="pt-2 flex justify-end">
-                      <button 
+                      <button
                         type="submit"
                         className="px-6 py-2.5 bg-stone-900 text-white rounded-xl font-bold text-sm hover:bg-stone-800 transition active:scale-98 cursor-pointer select-none"
                       >
@@ -1524,12 +1504,12 @@ const Detector = () => {
                   <div className="bg-white border border-stone-200/50 shadow-[0_15px_45px_rgba(28,25,23,0.02)] rounded-3xl p-8 sm:p-9 text-left">
                     <h3 className="text-lg font-bold text-stone-900 mb-1">Change Password</h3>
                     <p className="text-stone-400 text-[13px] font-medium mb-6">Update your password to keep your account secure</p>
-                    
+
                     <form onSubmit={handleUpdatePassword} className="space-y-5">
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[11px] font-extrabold text-stone-500 uppercase tracking-wider">Current Password</label>
-                        <input 
-                          type="password" 
+                        <input
+                          type="password"
                           placeholder="Enter current password"
                           value={currentPassword}
                           onChange={(e) => setCurrentPassword(e.target.value)}
@@ -1539,8 +1519,8 @@ const Detector = () => {
 
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[11px] font-extrabold text-stone-500 uppercase tracking-wider">New Password</label>
-                        <input 
-                          type="password" 
+                        <input
+                          type="password"
                           placeholder="At least 8 characters"
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
@@ -1550,8 +1530,8 @@ const Detector = () => {
 
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[11px] font-extrabold text-stone-500 uppercase tracking-wider">Confirm New Password</label>
-                        <input 
-                          type="password" 
+                        <input
+                          type="password"
                           placeholder="Re-enter new password"
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
@@ -1563,7 +1543,7 @@ const Detector = () => {
                         <span className="text-stone-400 text-xs font-semibold">
                           Signed up with Google? Use the <span className="underline hover:text-stone-600 cursor-pointer">forgot password</span> flow first.
                         </span>
-                        <button 
+                        <button
                           type="submit"
                           className="px-6 py-2.5 bg-stone-900 text-white rounded-xl font-bold text-sm hover:bg-stone-800 transition active:scale-98 cursor-pointer select-none"
                         >
@@ -1579,7 +1559,7 @@ const Detector = () => {
                       <h3 className="text-lg font-bold text-stone-900 mb-1">Active Sessions</h3>
                       <p className="text-stone-400 text-[13px] font-medium">Sign out of all other devices and browsers.</p>
                     </div>
-                    <button 
+                    <button
                       onClick={() => showToast('Successfully signed out of all other sessions.', 'success')}
                       className="px-6 py-2.5 border border-stone-200 text-stone-700 font-bold text-sm hover:bg-stone-50 rounded-xl transition active:scale-98 cursor-pointer shrink-0 select-none"
                     >
@@ -1593,7 +1573,7 @@ const Detector = () => {
                       <h3 className="text-lg font-bold text-stone-950 mb-1 text-red-600">Delete Account</h3>
                       <p className="text-stone-400 text-[13px] font-medium">Permanently remove your account and all data. This cannot be undone.</p>
                     </div>
-                    <button 
+                    <button
                       onClick={() => {
                         if (confirm('Are you sure you want to permanently delete your account? This action is irreversible.')) {
                           showToast('Account deletion request received.', 'success');
@@ -1615,7 +1595,7 @@ const Detector = () => {
                       <span className="text-[11px] font-bold text-stone-400 tracking-wider uppercase mb-1">Current Plan</span>
                       <h3 className="text-2xl font-black text-stone-900 tracking-tight">{subscriptionPlan} Plan</h3>
                     </div>
-                    <button 
+                    <button
                       onClick={() => setActiveTab('plans')}
                       className="px-6 py-2.5 bg-[#1FA463] text-white hover:bg-[#178a52] rounded-xl font-bold text-sm shadow-md shadow-[#1FA463]/10 hover:shadow-lg active:scale-98 transition flex items-center gap-2 cursor-pointer select-none"
                     >
@@ -1642,7 +1622,7 @@ const Detector = () => {
           <div className="w-full max-w-2xl bg-white border border-stone-200/50 rounded-[32px] p-8 md:p-10 shadow-2xl relative overflow-hidden animate-in fade-in zoom-in duration-300">
             {/* Background elements inside modal */}
             <div className="absolute -top-[50px] -right-[50px] w-[200px] h-[200px] bg-gradient-to-br from-[#7755FF]/5 to-[#4F33FF]/5 rounded-full blur-2xl pointer-events-none"></div>
-            
+
             {isSuccess ? (
               <div className="py-12 flex flex-col items-center justify-center text-center gap-5">
                 <div className="w-16 h-16 bg-[#1FA463]/10 text-[#1FA463] rounded-full flex items-center justify-center animate-bounce">
@@ -1657,17 +1637,17 @@ const Detector = () => {
               </div>
             ) : (
               <div className="flex flex-col gap-6">
-                
+
                 {/* Header & Progress Bar */}
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between text-xs font-bold text-stone-400 uppercase tracking-widest">
                     <span>Onboarding Survey</span>
                     <span>Step {onboardingStep} of 4</span>
                   </div>
-                  
+
                   {/* Progress Line */}
                   <div className="h-1.5 w-full bg-stone-200/60 rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className="h-full bg-gradient-to-r from-[#7755FF] to-[#1FA463] rounded-full transition-all duration-300"
                       style={{ width: `${(onboardingStep / 4) * 100}%` }}
                     />
@@ -1676,7 +1656,7 @@ const Detector = () => {
 
                 {/* Step contents */}
                 <div className="min-h-[300px] flex flex-col justify-start gap-6 py-2">
-                  
+
                   {/* Step 1: Role & Experience */}
                   {onboardingStep === 1 && (
                     <div className="flex flex-col gap-6 text-left">
@@ -1692,11 +1672,10 @@ const Detector = () => {
                                 key={opt}
                                 type="button"
                                 onClick={() => handleOnboardingSelect('role', opt)}
-                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${
-                                  isSelected 
-                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm shadow-[#7B82FF]/10' 
+                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${isSelected
+                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm shadow-[#7B82FF]/10'
                                     : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                }`}
+                                  }`}
                               >
                                 <span>{opt}</span>
                                 {isSelected && <Check size={16} strokeWidth={3} />}
@@ -1718,11 +1697,10 @@ const Detector = () => {
                                 key={opt}
                                 type="button"
                                 onClick={() => handleOnboardingSelect('experience', opt)}
-                                className={`flex-1 min-w-[100px] px-4 py-3 rounded-2xl border text-center text-sm font-semibold transition-all ${
-                                  isSelected 
-                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm shadow-[#7B82FF]/10' 
+                                className={`flex-1 min-w-[100px] px-4 py-3 rounded-2xl border text-center text-sm font-semibold transition-all ${isSelected
+                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm shadow-[#7B82FF]/10'
                                     : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                }`}
+                                  }`}
                               >
                                 {opt}
                               </button>
@@ -1748,11 +1726,10 @@ const Detector = () => {
                                 key={opt}
                                 type="button"
                                 onClick={() => handleOnboardingSelect('detectorUsed', opt)}
-                                className={`px-5 py-3.5 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${
-                                  isSelected 
-                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm' 
+                                className={`px-5 py-3.5 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${isSelected
+                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm'
                                     : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                }`}
+                                  }`}
                               >
                                 <span>{opt}</span>
                                 {isSelected && <Check size={16} strokeWidth={3} />}
@@ -1774,11 +1751,10 @@ const Detector = () => {
                                 key={opt}
                                 type="button"
                                 onClick={() => handleOnboardingSelect('heardAboutUs', opt)}
-                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${
-                                  isSelected 
-                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm' 
+                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${isSelected
+                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm'
                                     : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                }`}
+                                  }`}
                               >
                                 <span>{opt}</span>
                                 {isSelected && <Check size={16} strokeWidth={3} />}
@@ -1805,11 +1781,10 @@ const Detector = () => {
                                 key={opt}
                                 type="button"
                                 onClick={() => handleOnboardingSelect('purpose', opt)}
-                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${
-                                  isSelected 
-                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm' 
+                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${isSelected
+                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm'
                                     : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                }`}
+                                  }`}
                               >
                                 <span>{opt}</span>
                                 {isSelected && <Check size={16} strokeWidth={3} />}
@@ -1831,11 +1806,10 @@ const Detector = () => {
                                 key={opt}
                                 type="button"
                                 onClick={() => handleOnboardingSelect('frequency', opt)}
-                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${
-                                  isSelected 
-                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm' 
+                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${isSelected
+                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm'
                                     : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                }`}
+                                  }`}
                               >
                                 <span>{opt}</span>
                                 {isSelected && <Check size={16} strokeWidth={3} />}
@@ -1872,11 +1846,10 @@ const Detector = () => {
                                 key={opt}
                                 type="button"
                                 onClick={() => handleOnboardingSelect('updates', opt)}
-                                className={`flex-1 py-2.5 rounded-xl border text-center text-xs font-bold transition-all ${
-                                  isSelected 
-                                    ? 'bg-[#1FA463]/5 border-[#1FA463] text-[#1FA463] shadow-sm' 
+                                className={`flex-1 py-2.5 rounded-xl border text-center text-xs font-bold transition-all ${isSelected
+                                    ? 'bg-[#1FA463]/5 border-[#1FA463] text-[#1FA463] shadow-sm'
                                     : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                }`}
+                                  }`}
                               >
                                 {opt}
                               </button>
@@ -1904,7 +1877,7 @@ const Detector = () => {
 
                 {/* Footer Buttons */}
                 <div className="flex items-center justify-between border-t border-stone-100 pt-6">
-                  
+
                   {/* Back button */}
                   {onboardingStep > 1 ? (
                     <button
@@ -1935,13 +1908,12 @@ const Detector = () => {
                         (onboardingStep === 2 && (!onboardingData.detectorUsed || !onboardingData.heardAboutUs)) ||
                         (onboardingStep === 3 && (!onboardingData.purpose || !onboardingData.frequency))
                       }
-                      className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl text-white text-sm font-bold transition shadow-md hover:shadow-lg ${
-                        ((onboardingStep === 1 && (!onboardingData.role || !onboardingData.experience)) ||
-                         (onboardingStep === 2 && (!onboardingData.detectorUsed || !onboardingData.heardAboutUs)) ||
-                         (onboardingStep === 3 && (!onboardingData.purpose || !onboardingData.frequency)))
+                      className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl text-white text-sm font-bold transition shadow-md hover:shadow-lg ${((onboardingStep === 1 && (!onboardingData.role || !onboardingData.experience)) ||
+                          (onboardingStep === 2 && (!onboardingData.detectorUsed || !onboardingData.heardAboutUs)) ||
+                          (onboardingStep === 3 && (!onboardingData.purpose || !onboardingData.frequency)))
                           ? 'bg-stone-300 text-stone-500 cursor-not-allowed shadow-none'
                           : 'bg-[#7B82FF] hover:bg-[#6870fa]'
-                      }`}
+                        }`}
                     >
                       Next
                       <ArrowRight size={16} />
@@ -1951,11 +1923,10 @@ const Detector = () => {
                       type="button"
                       onClick={handleSubmitOnboarding}
                       disabled={isSubmitting || !onboardingData.updates}
-                      className={`flex items-center gap-2 px-8 py-2.5 rounded-2xl text-white text-sm font-bold transition shadow-md hover:shadow-lg ${
-                        isSubmitting || !onboardingData.updates
+                      className={`flex items-center gap-2 px-8 py-2.5 rounded-2xl text-white text-sm font-bold transition shadow-md hover:shadow-lg ${isSubmitting || !onboardingData.updates
                           ? 'bg-stone-300 text-stone-500 cursor-not-allowed shadow-none'
                           : 'bg-[#1FA463] hover:bg-[#178a52] shadow-[#1FA463]/15'
-                      }`}
+                        }`}
                     >
                       {isSubmitting ? 'Submitting...' : 'Submit Answers'}
                     </button>

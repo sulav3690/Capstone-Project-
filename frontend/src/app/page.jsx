@@ -12,6 +12,7 @@ import {
   Lock, CheckCircle, Wallet, Landmark
 } from 'lucide-react';
 import Footer from '../components/Footer';
+import emailjs from '@emailjs/browser';
 
 const safeLocalStorage = {
   getItem: (key) => {
@@ -159,6 +160,7 @@ const AppLayout = ({ children, currentView, setCurrentView }) => {
 
 // ─── Main Landing Page ────────────────────────────────────────────────────────
 const LandingView = ({ setCurrentView, scrollIntoView }) => {
+  const router = useRouter();
   const [openFaqIndices, setOpenFaqIndices] = useState([]);
   const [showHeader, setShowHeader] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -232,7 +234,7 @@ const LandingView = ({ setCurrentView, scrollIntoView }) => {
           </div>
           
           <div className="flex items-center gap-8">
-            <button onClick={() => setCurrentView('subscription')} className="text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide cursor-pointer">
+            <button onClick={() => router.push('/subscription')} className="text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide cursor-pointer">
               Pricing
             </button>
             <button onClick={() => faqRef.current?.scrollIntoView({ behavior: 'smooth' })} className="text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide cursor-pointer">
@@ -242,10 +244,10 @@ const LandingView = ({ setCurrentView, scrollIntoView }) => {
         </div>
         
         <div className="flex items-center gap-8">
-          <button onClick={() => setCurrentView('login')} className="text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide cursor-pointer">
+          <button onClick={() => router.push('/login')} className="text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide cursor-pointer">
             Login
           </button>
-          <button onClick={() => setCurrentView('dashboard')} className="bg-[#7B82FF] hover:bg-[#6870fa] text-white text-[15px] font-bold py-2.5 px-6 rounded-full transition-all cursor-pointer">
+          <button onClick={() => router.push('/dashboard')} className="bg-[#7B82FF] hover:bg-[#6870fa] text-white text-[15px] font-bold py-2.5 px-6 rounded-full transition-all cursor-pointer">
             Dashboard
           </button>
         </div>
@@ -260,7 +262,7 @@ const LandingView = ({ setCurrentView, scrollIntoView }) => {
             At VeritasAI, we believe ensuring AI text authenticity should be simple. We're here to help you identify AI-generated content, improve source credibility, and connect with your audience on a deeper level.
           </p>
           <div className="mt-4 flex gap-4 justify-center">
-            <button onClick={() => setCurrentView('login')} className="bg-[#1FA463] text-white font-bold py-3 px-8 rounded-full shadow-md hover:bg-[#178a52] transition cursor-pointer">
+            <button onClick={() => router.push('/login')} className="bg-[#1FA463] text-white font-bold py-3 px-8 rounded-full shadow-md hover:bg-[#178a52] transition cursor-pointer">
               Get Started Now
             </button>
           </div>
@@ -366,114 +368,7 @@ const LandingView = ({ setCurrentView, scrollIntoView }) => {
         </section>
       </main>
       
-      {/* Stats Section & Privacy Pill */}
-      <div className="relative z-20 w-full flex flex-col items-center px-4 mt-12 mb-16">
-        {/* Stats Card */}
-        <div className="w-full max-w-[1050px] bg-white rounded-3xl p-6 shadow-[0_20px_50px_rgba(28,25,23,0.03)] border border-stone-200/40">
-          <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-stone-100 w-full">
-            
-            {/* Left Side: 90% Accuracy Metric */}
-            <div className="flex flex-col items-center md:items-start text-center md:text-left p-8 md:p-10 gap-4 flex-1">
-              <div className="w-[56px] h-[56px] rounded-2xl bg-[#E8F8F5] flex items-center justify-center shadow-sm">
-                <Target size={28} className="text-[#10B981]" strokeWidth={2.5} />
-              </div>
-              <div>
-                <h3 className="text-[54px] font-black text-[#10B981] tracking-tight leading-none">90%</h3>
-                <p className="font-extrabold text-stone-900 text-xl mt-2">Detection Accuracy</p>
-              </div>
-              <p className="text-stone-500 text-[15px] leading-relaxed max-w-[280px]">
-                Industry-leading precision tuned specifically to minimize false positives.
-              </p>
-            </div>
 
-            {/* Right Side: Detailed explanation */}
-            <div className="flex flex-col justify-center p-8 md:p-10 gap-6 flex-[1.5] border-t md:border-t-0 md:border-l border-stone-100">
-              <h4 className="text-[20px] font-bold text-stone-900 tracking-tight">How we achieve high accuracy</h4>
-              <p className="text-stone-600 text-[15px] leading-relaxed font-medium">
-                VeritasAI is built on advanced linguistic analysis and machine learning models. By analyzing structural patterns, vocabulary consistency, and writing entropy, our detector accurately distinguishes between human creativity and AI-generated outputs.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm font-semibold text-stone-700">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#10B981]"></span>
-                  Multi-LLM recognition (GPT, Claude, Gemini)
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#10B981]"></span>
-                  Sentence burstiness evaluation
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#10B981]"></span>
-                  Minimizes false positives for human text
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#10B981]"></span>
-                  Linguistic perplexity scoring
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        {/* Privacy Pill */}
-        <div className="mt-8 bg-white rounded-full py-3.5 px-6 flex items-center gap-3 shadow-[0_10px_30px_rgba(28,25,23,0.03)] border border-stone-200/40">
-          <div className="w-[30px] h-[30px] rounded-full bg-[#E5F5ED] flex items-center justify-center">
-            <Shield size={16} className="text-[#10B981]" strokeWidth={3} />
-          </div>
-          <p className="text-[#4B5563] text-[15px] font-medium tracking-tight">
-            Your privacy is our priority. We <span className="text-[#10B981] font-bold">never</span> store your content.
-          </p>
-        </div>
-      </div>
-
-
-
-      {/* FAQ Section */}
-      <section id="faq" ref={faqRef} className="relative z-20 w-full max-w-[900px] mx-auto px-4 mt-20 mb-24">
-        <div className="text-center mb-12">
-          <h2 className="text-[40px] font-bold text-stone-900 tracking-tight">FAQs about VeritasAI</h2>
-          <p className="text-stone-600 text-[16px] mt-3 font-medium">
-            Everything you need to know about VeritasAI and our detection systems.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-4">
-          {faqs.map((faq, index) => {
-            const isOpen = openFaqIndices.includes(index);
-            return (
-              <div 
-                key={index} 
-                className={`border bg-white rounded-2xl overflow-hidden transition-all duration-300 w-full ${
-                  isOpen 
-                    ? 'border-[#1FA463]/35 shadow-[0_10px_30px_rgba(31,164,99,0.025)]' 
-                    : 'border-stone-200/80 shadow-[0_4px_20px_rgba(28,25,23,0.02)]'
-                } hover:border-[#1FA463] hover:shadow-[0_12px_40px_rgba(31,164,99,0.05)]`}
-              >
-                <button
-                  type="button"
-                  onClick={() => toggleFaq(index)}
-                  className="w-full flex items-center justify-between p-6 text-left font-semibold text-base sm:text-lg text-stone-900 hover:text-[#1FA463] transition-colors select-none"
-                >
-                  <span>{faq.question}</span>
-                  <span className="text-[#1FA463] shrink-0 ml-4 transition-transform duration-200">
-                    {isOpen ? <Minus size={20} strokeWidth={2.5} /> : <Plus size={20} strokeWidth={2.5} />}
-                  </span>
-                </button>
-                
-                <div 
-                  className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                    isOpen ? 'max-h-[300px] border-t border-stone-100 opacity-100' : 'max-h-0 opacity-0'
-                  }`}
-                >
-                  <p className="p-6 text-stone-600 text-sm leading-relaxed font-medium bg-[#FCFAF7]">
-                    {faq.answer}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
       
       {/* Footer / Emerging Bottom Container */}
       <Footer className="!mt-16 md:!mt-24" />
@@ -907,7 +802,7 @@ const DashboardView = ({
     } else if (completed !== 'skipped') {
       try {
         setSurveyData(JSON.parse(completed));
-      } catch (e) {}
+      } catch (e) { /* ignore error */ }
     }
   }, []);
 

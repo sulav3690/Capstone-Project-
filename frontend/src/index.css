@@ -33,3 +33,44 @@
     transform: translateY(0) scale(1);
   }
 }
+
+/* Auth Page Slide Swap Animations */
+@keyframes slideOutLeft {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(-100%); opacity: 0; filter: blur(4px); }
+}
+@keyframes slideInLeft {
+  0% { transform: translateX(-100%); opacity: 0; filter: blur(4px); }
+  100% { transform: translateX(0); opacity: 1; filter: blur(0); }
+}
+@keyframes slideOutRight {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; filter: blur(4px); }
+}
+@keyframes slideInRight {
+  0% { transform: translateX(100%); opacity: 0; filter: blur(4px); }
+  100% { transform: translateX(0); opacity: 1; filter: blur(0); }
+}
+
+.animate-slide-out-left {
+  animation: slideOutLeft 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+.animate-slide-in-left {
+  animation: slideInLeft 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+.animate-slide-out-right {
+  animation: slideOutRight 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+.animate-slide-in-right {
+  animation: slideInRight 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+/* Custom Fade and Scale Entries */
+@keyframes fadeScaleIn {
+  0% { opacity: 0; transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.animate-fade-scale-in {
+  animation: fadeScaleIn 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
