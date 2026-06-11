@@ -7,20 +7,26 @@ import { useToast } from '../../components/ToastProvider';
 
 const safeLocalStorage = {
   getItem: (key) => {
-    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.getItem === 'function') {
-      return window.localStorage.getItem(key);
-    }
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return window.localStorage.getItem(key);
+      }
+    } catch (e) { /* SSR or restricted environment */ }
     return null;
   },
   setItem: (key, value) => {
-    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.setItem === 'function') {
-      window.localStorage.setItem(key, value);
-    }
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(key, value);
+      }
+    } catch (e) { /* SSR or restricted environment */ }
   },
   removeItem: (key) => {
-    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.removeItem === 'function') {
-      window.localStorage.removeItem(key);
-    }
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem(key);
+      }
+    } catch (e) { /* SSR or restricted environment */ }
   }
 };
 
