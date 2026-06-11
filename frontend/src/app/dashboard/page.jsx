@@ -38,6 +38,25 @@ import Toggle from '../../components/ui/Toggle';
 import Footer from '../../components/Footer';
 import { useToast } from '../../components/ToastProvider';
 
+const safeLocalStorage = {
+  getItem: (key) => {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.getItem === 'function') {
+      return window.localStorage.getItem(key);
+    }
+    return null;
+  },
+  setItem: (key, value) => {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.setItem === 'function') {
+      window.localStorage.setItem(key, value);
+    }
+  },
+  removeItem: (key) => {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.removeItem === 'function') {
+      window.localStorage.removeItem(key);
+    }
+  }
+};
+
 // ─── Simulated Analysis Engine ────────────────────────────────────────────────
 // Produces realistic, text-dependent scores without a backend
 function analyzeText(text) {
@@ -169,7 +188,7 @@ const Detector = () => {
 
   useEffect(() => {
     setIsMounted(true);
-    const completed = localStorage.getItem('veritas_onboarding_completed');
+    const completed = safeLocalStorage.getItem('veritas_onboarding_completed');
     if (!completed) {
       setShowSurveyModal(true);
     } else if (completed !== 'skipped') {
@@ -194,7 +213,7 @@ const Detector = () => {
   };
 
   const handleSkipOnboarding = () => {
-    localStorage.setItem('veritas_onboarding_completed', 'skipped');
+    safeLocalStorage.setItem('veritas_onboarding_completed', 'skipped');
     setShowSurveyModal(false);
     setOnboardingStep(1);
   };
@@ -205,7 +224,7 @@ const Detector = () => {
     setTimeout(() => {
       setIsSubmitting(false);
       setIsSuccess(true);
-      localStorage.setItem('veritas_onboarding_completed', JSON.stringify(onboardingData));
+      safeLocalStorage.setItem('veritas_onboarding_completed', JSON.stringify(onboardingData));
       setSurveyData(onboardingData);
       setTimeout(() => {
         setShowSurveyModal(false);
@@ -391,9 +410,9 @@ const Detector = () => {
     }, 100);
 
     // Save states to localStorage for compatibility
-    localStorage.setItem('veritas_text', plainText);
-    localStorage.setItem('veritas_aiDetection', aiDetection.toString());
-    localStorage.setItem('veritas_misinformation', misinformation.toString());
+    safeLocalStorage.setItem('veritas_text', plainText);
+    safeLocalStorage.setItem('veritas_aiDetection', aiDetection.toString());
+    safeLocalStorage.setItem('veritas_misinformation', misinformation.toString());
 
     setTimeout(() => {
       const analysis = analyzeText(plainText);
@@ -627,7 +646,7 @@ const Detector = () => {
                 {/* Logout Button inside the Card */}
                 <button 
                   onClick={() => {
-                    localStorage.removeItem('veritas_onboarding_completed');
+                    safeLocalStorage.removeItem('veritas_onboarding_completed');
                     router.push('/login');
                   }}
                   className="w-full py-2 bg-red-50/70 hover:bg-red-100/90 active:scale-98 border border-red-100/80 rounded-full flex items-center justify-center gap-2 transition-all cursor-pointer text-red-600 text-[11px] font-bold shadow-sm"

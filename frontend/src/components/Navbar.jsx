@@ -6,6 +6,25 @@ import { ArrowLeft } from 'lucide-react';
 import Button from './ui/Button';
 import { useToast } from './ToastProvider';
 
+const safeLocalStorage = {
+  getItem: (key) => {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.getItem === 'function') {
+      return window.localStorage.getItem(key);
+    }
+    return null;
+  },
+  setItem: (key, value) => {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.setItem === 'function') {
+      window.localStorage.setItem(key, value);
+    }
+  },
+  removeItem: (key) => {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.removeItem === 'function') {
+      window.localStorage.removeItem(key);
+    }
+  }
+};
+
 const Navbar = () => {
   const router = useRouter();
   const { showToast } = useToast();
@@ -33,7 +52,7 @@ const Navbar = () => {
           Feedback
         </button>
         <button onClick={() => {
-          localStorage.removeItem('veritas_onboarding_completed');
+          safeLocalStorage.removeItem('veritas_onboarding_completed');
           router.push('/login');
         }} className="bg-[#F36C3D] text-white text-sm font-semibold py-1.5 px-6 rounded-md shadow-sm hover:bg-opacity-90 flex items-center h-[34px] ml-1">
           Logout

@@ -14,6 +14,25 @@ import {
 } from 'lucide-react';
 import Footer from '../components/Footer';
 
+const safeLocalStorage = {
+  getItem: (key) => {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.getItem === 'function') {
+      return window.localStorage.getItem(key);
+    }
+    return null;
+  },
+  setItem: (key, value) => {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.setItem === 'function') {
+      window.localStorage.setItem(key, value);
+    }
+  },
+  removeItem: (key) => {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.removeItem === 'function') {
+      window.localStorage.removeItem(key);
+    }
+  }
+};
+
 const CardIcon = CreditCard;
 
 import Card from '../components/ui/Card';
@@ -468,7 +487,7 @@ const LoginView = ({ setCurrentView, setDisplayName, setEmailAddress }) => {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    localStorage.removeItem('veritas_onboarding_completed');
+    safeLocalStorage.removeItem('veritas_onboarding_completed');
     if (credentials.username) {
       setDisplayName(credentials.username);
       setEmailAddress(`${credentials.username.toLowerCase()}@capstone.edu`);
@@ -500,7 +519,7 @@ const LoginView = ({ setCurrentView, setDisplayName, setEmailAddress }) => {
                <div className="flex-1 flex flex-col items-start min-w-[320px]">
                  <div className="w-full flex flex-col border border-gray-300 sm:border-gray-200 bg-white rounded-3xl overflow-hidden sm:shadow-sm">
                     <button onClick={() => { 
-                      localStorage.removeItem('veritas_onboarding_completed');
+                      safeLocalStorage.removeItem('veritas_onboarding_completed');
                       setDisplayName("Sulav Sharma");
                       setEmailAddress("sulav2080-0306@iimscollege.edu.np");
                       setShowGoogleModal(false); 
@@ -877,7 +896,7 @@ const DashboardView = ({
   const editorRef = useRef(null);
 
   useEffect(() => {
-    const completed = localStorage.getItem('veritas_onboarding_completed');
+    const completed = safeLocalStorage.getItem('veritas_onboarding_completed');
     if (!completed) {
       setShowSurveyModal(true);
     } else if (completed !== 'skipped') {
@@ -892,7 +911,7 @@ const DashboardView = ({
   };
 
   const handleSkipOnboarding = () => {
-    localStorage.setItem('veritas_onboarding_completed', 'skipped');
+    safeLocalStorage.setItem('veritas_onboarding_completed', 'skipped');
     setShowSurveyModal(false);
   };
 
@@ -902,7 +921,7 @@ const DashboardView = ({
     setTimeout(() => {
       setIsSubmitting(false);
       setIsSuccess(true);
-      localStorage.setItem('veritas_onboarding_completed', JSON.stringify(onboardingData));
+      safeLocalStorage.setItem('veritas_onboarding_completed', JSON.stringify(onboardingData));
       setSurveyData(onboardingData);
       setTimeout(() => {
         setShowSurveyModal(false);
@@ -1083,7 +1102,7 @@ const DashboardView = ({
           </button>
           <button 
             onClick={() => {
-              localStorage.removeItem('veritas_onboarding_completed');
+              safeLocalStorage.removeItem('veritas_onboarding_completed');
               setCurrentView('login');
             }}
             className={`flex items-center justify-center gap-2 rounded-xl border border-stone-200 text-stone-600 hover:text-red-600 hover:bg-red-50/30 text-sm font-semibold transition-all cursor-pointer ${

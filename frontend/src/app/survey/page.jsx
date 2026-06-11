@@ -6,6 +6,25 @@ import Link from 'next/link';
 import PublicLayout from '../../components/PublicLayout';
 import { ShieldCheck, ArrowRight, ArrowLeft, Check, Sparkles } from 'lucide-react';
 
+const safeLocalStorage = {
+  getItem: (key) => {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.getItem === 'function') {
+      return window.localStorage.getItem(key);
+    }
+    return null;
+  },
+  setItem: (key, value) => {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.setItem === 'function') {
+      window.localStorage.setItem(key, value);
+    }
+  },
+  removeItem: (key) => {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.removeItem === 'function') {
+      window.localStorage.removeItem(key);
+    }
+  }
+};
+
 export default function SurveyPage() {
   const router = useRouter();
   const [onboardingStep, setOnboardingStep] = useState(1);
@@ -24,7 +43,7 @@ export default function SurveyPage() {
 
   // Sync with localStorage so completing standalone survey completes onboarding modal too
   useEffect(() => {
-    const completed = localStorage.getItem('veritas_onboarding_completed');
+    const completed = safeLocalStorage.getItem('veritas_onboarding_completed');
     if (completed && completed !== 'skipped') {
       try {
         const data = JSON.parse(completed);
@@ -48,7 +67,7 @@ export default function SurveyPage() {
   };
 
   const handleSkipOnboarding = () => {
-    localStorage.setItem('veritas_onboarding_completed', 'skipped');
+    safeLocalStorage.setItem('veritas_onboarding_completed', 'skipped');
     router.push('/');
   };
 
@@ -58,7 +77,7 @@ export default function SurveyPage() {
     setTimeout(() => {
       setIsSubmitting(false);
       setIsSuccess(true);
-      localStorage.setItem('veritas_onboarding_completed', JSON.stringify(onboardingData));
+      safeLocalStorage.setItem('veritas_onboarding_completed', JSON.stringify(onboardingData));
       setTimeout(() => {
         router.push('/');
       }, 1500);

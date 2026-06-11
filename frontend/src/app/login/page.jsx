@@ -5,6 +5,25 @@ import { useRouter } from 'next/navigation';
 import { FileText, Play, Sparkles, ShieldCheck, UserCircle2 } from 'lucide-react';
 import { useToast } from '../../components/ToastProvider';
 
+const safeLocalStorage = {
+  getItem: (key) => {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.getItem === 'function') {
+      return window.localStorage.getItem(key);
+    }
+    return null;
+  },
+  setItem: (key, value) => {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.setItem === 'function') {
+      window.localStorage.setItem(key, value);
+    }
+  },
+  removeItem: (key) => {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.removeItem === 'function') {
+      window.localStorage.removeItem(key);
+    }
+  }
+};
+
 export default function Login() {
   const router = useRouter();
   const { showToast } = useToast();
@@ -17,7 +36,7 @@ export default function Login() {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    localStorage.removeItem('veritas_onboarding_completed');
+    safeLocalStorage.removeItem('veritas_onboarding_completed');
     router.push('/dashboard');
   };
 
@@ -52,7 +71,7 @@ export default function Login() {
                    
                    {/* Valid Account */}
                    <button onClick={() => { 
-                      localStorage.removeItem('veritas_onboarding_completed');
+                      safeLocalStorage.removeItem('veritas_onboarding_completed');
                       setShowGoogleModal(false); 
                       router.push('/dashboard'); 
                     }} className="w-full flex items-center justify-between px-6 py-[15px] hover:bg-[#F8FAFD] transition-colors border-b border-gray-200 text-left">

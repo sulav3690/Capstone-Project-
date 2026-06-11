@@ -6,6 +6,25 @@ import Layout from '../../components/Layout';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 
+const safeLocalStorage = {
+  getItem: (key) => {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.getItem === 'function') {
+      return window.localStorage.getItem(key);
+    }
+    return null;
+  },
+  setItem: (key, value) => {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.setItem === 'function') {
+      window.localStorage.setItem(key, value);
+    }
+  },
+  removeItem: (key) => {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.removeItem === 'function') {
+      window.localStorage.removeItem(key);
+    }
+  }
+};
+
 // ─── Simulated Analysis Engine ────────────────────────────────────────────────
 // Produces realistic, text-dependent scores without a backend
 function analyzeText(text) {
@@ -84,7 +103,7 @@ const Result = () => {
   const [localText, setLocalText] = useState('');
 
   useEffect(() => {
-    const saved = localStorage.getItem('veritas_text') || '';
+    const saved = safeLocalStorage.getItem('veritas_text') || '';
     setLocalText(saved);
     if (saved.trim().length > 0) {
       const analysis = analyzeText(saved);
