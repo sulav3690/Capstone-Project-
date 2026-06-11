@@ -17,6 +17,7 @@ export default function Login() {
 
   const handleLogin = (e) => {
     e.preventDefault();
+    localStorage.removeItem('veritas_onboarding_completed');
     router.push('/dashboard');
   };
 
@@ -50,14 +51,18 @@ export default function Login() {
                  <div className="w-full flex flex-col border border-gray-300 sm:border-gray-200 bg-white rounded-3xl overflow-hidden sm:shadow-sm">
                    
                    {/* Valid Account */}
-                   <button onClick={() => { setShowGoogleModal(false); router.push('/dashboard'); }} className="w-full flex items-center justify-between px-6 py-[15px] hover:bg-[#F8FAFD] transition-colors border-b border-gray-200 text-left">
+                   <button onClick={() => { 
+                      localStorage.removeItem('veritas_onboarding_completed');
+                      setShowGoogleModal(false); 
+                      router.push('/dashboard'); 
+                    }} className="w-full flex items-center justify-between px-6 py-[15px] hover:bg-[#F8FAFD] transition-colors border-b border-gray-200 text-left">
                      <div className="flex items-center gap-3.5">
                        <div className="w-[34px] h-[34px] rounded-full bg-[#8E24AA] flex items-center justify-center text-white font-medium text-[15px]">
                          S
                        </div>
                        <div className="flex flex-col">
                          <span className="text-[#1F1F1F] font-medium text-[14px]">Sulav Sharma</span>
-                         <span className="text-[#444746] text-[12px] tracking-wide mt-[-2px]">sulavshrm@gmail.com</span>
+                         <span className="text-[#444746] text-[12px] tracking-wide mt-[-2px]">sulav2080-0306@iimscollege.edu.np</span>
                        </div>
                      </div>
                    </button>
@@ -177,7 +182,7 @@ export default function Login() {
               <button
                 id="login-register"
                 type="button"
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push('/register')}
                 className="flex-1 py-2.5 rounded-full bg-[#F36C3D] hover:bg-[#e05a2b] text-white font-bold transition-all duration-200 shadow-sm hover:shadow-md active:scale-95"
               >
                 Register

@@ -27,8 +27,11 @@ import {
   Check,
   Plus,
   Minus,
-  Lock,
-  X
+  Sparkles,
+  ArrowRight,
+  ArrowLeft,
+  X,
+  CheckCircle
 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Toggle from '../../components/ui/Toggle';
@@ -98,7 +101,7 @@ function buildHighlightedSegments(text, aiPct) {
 
 const Detector = () => {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('detector');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [aiDetection, setAiDetection] = useState(true);
   const [misinformation, setMisinformation] = useState(true);
   const [error, setError] = useState('');
@@ -117,8 +120,8 @@ const Detector = () => {
   
   // Account subview states
   const [accountSubTab, setAccountSubTab] = useState('general');
-  const [displayName, setDisplayName] = useState('Sabin Shrestha');
-  const [emailAddress, setEmailAddress] = useState('sabin2080-0297@iimscollege.edu.np');
+  const [displayName, setDisplayName] = useState('Sulav Sharma');
+  const [emailAddress, setEmailAddress] = useState('sulav2080-0306@iimscollege.edu.np');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -145,6 +148,106 @@ const Detector = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Onboarding survey states
+  const [surveyData, setSurveyData] = useState(null);
+  const [isMounted, setIsMounted] = useState(false);
+  const [showSurveyModal, setShowSurveyModal] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(1);
+  const [onboardingData, setOnboardingData] = useState({
+    role: '',
+    experience: '',
+    detectorUsed: '',
+    heardAboutUs: '',
+    purpose: '',
+    frequency: '',
+    updates: '',
+    helpText: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    const completed = localStorage.getItem('veritas_onboarding_completed');
+    if (!completed) {
+      setShowSurveyModal(true);
+    } else if (completed !== 'skipped') {
+      try {
+        setSurveyData(JSON.parse(completed));
+      } catch (e) {
+        // ignore errors
+      }
+    }
+  }, [router]);
+
+  const handleOnboardingSelect = (field, value) => {
+    setOnboardingData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleNextStep = () => {
+    setOnboardingStep(prev => prev + 1);
+  };
+
+  const handlePrevStep = () => {
+    setOnboardingStep(prev => prev - 1);
+  };
+
+  const handleSkipOnboarding = () => {
+    localStorage.setItem('veritas_onboarding_completed', 'skipped');
+    setShowSurveyModal(false);
+    setOnboardingStep(1);
+  };
+
+  const handleSubmitOnboarding = () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setTimeout(() => {
+      setIsSubmitting(false);
+      setIsSuccess(true);
+      localStorage.setItem('veritas_onboarding_completed', JSON.stringify(onboardingData));
+      setSurveyData(onboardingData);
+      setTimeout(() => {
+        setShowSurveyModal(false);
+        setIsSuccess(false);
+        setOnboardingStep(1);
+      }, 1500);
+    }, 1000);
+  };
+
+  const onboardingQuestions = {
+    role: {
+      question: "What best describes you?",
+      options: ["Student", "Teacher", "Researcher", "Content Creator", "Business Professional", "Other"]
+    },
+    heardAboutUs: {
+      question: "How did you hear about us?",
+      options: ["Google Search", "Social Media", "Friend/Colleague", "YouTube", "School/University", "Other"]
+    },
+    detectorUsed: {
+      question: "Have you used an AI detector before?",
+      options: ["Yes, frequently", "Yes, a few times", "No, this is my first time"]
+    },
+    purpose: {
+      question: "What do you plan to use this website for?",
+      options: ["Checking assignments", "Detecting AI-generated content", "Academic research", "Content writing", "Business use", "Other"]
+    },
+    frequency: {
+      question: "How often do you expect to use this platform?",
+      options: ["Daily", "Weekly", "Monthly", "Occasionally"]
+    },
+    updates: {
+      question: "Would you like product updates and tips?",
+      options: ["Yes", "No"]
+    },
+    experience: {
+      question: "What is your experience level with AI tools?",
+      options: ["Beginner", "Intermediate", "Advanced"]
+    },
+    helpText: {
+      question: "Is there anything specific you'd like us to help you with?"
+    }
+  };
 
   const handleSaveGeneral = (e) => {
     e.preventDefault();
@@ -319,6 +422,10 @@ const Detector = () => {
     reader.readAsText(file);
   };
 
+  if (!isMounted) {
+    return <div className="min-h-screen bg-[#FDFBF7]" />;
+  }
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] flex font-sans text-stone-800">
       
@@ -360,9 +467,9 @@ const Detector = () => {
           {/* Navigation Links */}
           <nav className="flex flex-col gap-6 mt-4 w-full">
             <button 
-              onClick={() => setActiveTab('detector')}
+              onClick={() => setActiveTab('dashboard')}
               className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all w-full text-left ${
-                activeTab === 'detector'
+                activeTab === 'dashboard'
                   ? 'bg-stone-900 text-white shadow-sm font-semibold'
                   : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
               } ${
@@ -372,6 +479,21 @@ const Detector = () => {
             >
               <LayoutDashboard size={18} className="shrink-0" />
               {!isSidebarCollapsed && <span className="truncate">Dashboard</span>}
+            </button>
+
+            <button 
+              onClick={() => setActiveTab('detector')}
+              className={`flex items-center gap-3 rounded-xl text-sm transition-all w-full text-left ${
+                activeTab === 'detector'
+                  ? 'bg-stone-900 text-white shadow-sm font-semibold'
+                  : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
+              } ${
+                isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2.5'
+              }`}
+              title="AI Content Detector"
+            >
+              <ShieldCheck size={18} className="shrink-0" />
+              {!isSidebarCollapsed && <span className="truncate">AI Detector</span>}
             </button>
 
             {/* Account Section */}
@@ -487,7 +609,6 @@ const Detector = () => {
                   <span className="text-stone-500 text-[11px] font-semibold truncate leading-none">@{displayName.toLowerCase().replace(/\s+/g, '_')}</span>
                 </div>
               </div>
-
               {/* Action Buttons inside Card */}
               <div className="flex flex-col gap-2">
                 {/* Upgrade Button */}
@@ -505,7 +626,10 @@ const Detector = () => {
 
                 {/* Logout Button inside the Card */}
                 <button 
-                  onClick={() => router.push('/login')}
+                  onClick={() => {
+                    localStorage.removeItem('veritas_onboarding_completed');
+                    router.push('/login');
+                  }}
                   className="w-full py-2 bg-red-50/70 hover:bg-red-100/90 active:scale-98 border border-red-100/80 rounded-full flex items-center justify-center gap-2 transition-all cursor-pointer text-red-600 text-[11px] font-bold shadow-sm"
                 >
                   <LogOut size={13} className="shrink-0" />
@@ -515,12 +639,176 @@ const Detector = () => {
 
             </div>
           )}
-
         </div>
       </aside>
 
       {/* Main Content Pane - Automatically stretches dynamically when sidebar collapses */}
       <main className="flex-1 p-4 sm:p-8 pt-10 sm:pt-16 max-w-[1240px] mx-auto w-full flex flex-col justify-start transition-all duration-300">
+        {activeTab === 'dashboard' && (
+          <div className="flex flex-col gap-8 w-full max-w-[1000px] mx-auto text-left">
+            {/* Header / Welcome Banner */}
+            <div className="bg-gradient-to-br from-[#7755FF] to-[#4F33FF] rounded-[32px] p-8 md:p-10 text-white relative overflow-hidden shadow-lg">
+              {/* Background patterns */}
+              <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
+              <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="flex flex-col gap-2">
+                  <div className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider w-fit">
+                    <Sparkles size={12} />
+                    Personalized Workspace
+                  </div>
+                  <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
+                    Welcome back, {displayName}!
+                  </h1>
+                  <p className="text-white/80 font-medium text-sm md:text-base max-w-xl leading-relaxed">
+                    VeritasAI is optimized and ready. Analyze text, evaluate burstiness, and detect AI signatures in seconds.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setActiveTab('detector')}
+                  className="px-6 py-3 bg-white text-stone-900 font-bold rounded-2xl hover:bg-stone-50 hover:scale-[1.02] active:scale-98 transition shadow-md flex items-center gap-2 cursor-pointer whitespace-nowrap text-[14px]"
+                >
+                  Start New Scan
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Core Stats Overview */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div className="bg-white border border-stone-200/50 rounded-3xl p-6 shadow-[0_15px_40px_rgba(28,25,23,0.015)] flex flex-col gap-2 hover:-translate-y-0.5 transition duration-300">
+                <span className="text-[11px] font-bold text-stone-400 uppercase tracking-widest">Total Scans Run</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-black text-stone-900 tracking-tight">3</span>
+                  <span className="text-stone-400 text-xs font-semibold">scans</span>
+                </div>
+                <p className="text-[11px] font-semibold text-[#1FA463] mt-1 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1FA463]"></span>
+                  All systems operating normally
+                </p>
+              </div>
+              <div className="bg-white border border-stone-200/50 rounded-3xl p-6 shadow-[0_15px_40px_rgba(28,25,23,0.015)] flex flex-col gap-2 hover:-translate-y-0.5 transition duration-300">
+                <span className="text-[11px] font-bold text-stone-400 uppercase tracking-widest">Average AI Score</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-black text-stone-900 tracking-tight">24.2%</span>
+                  <span className="text-stone-400 text-xs font-semibold">AI signature</span>
+                </div>
+                <p className="text-[11px] font-semibold text-stone-400 mt-1">
+                  Based on recent scan history
+                </p>
+              </div>
+              <div className="bg-white border border-stone-200/50 rounded-3xl p-6 shadow-[0_15px_40px_rgba(28,25,23,0.015)] flex flex-col gap-2 hover:-translate-y-0.5 transition duration-300">
+                <span className="text-[11px] font-bold text-stone-400 uppercase tracking-widest">Current Plan</span>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-lg font-black text-stone-800 tracking-tight">{subscriptionPlan} Plan</span>
+                  <button 
+                    onClick={() => setActiveTab('plans')}
+                    className="text-xs font-bold text-[#7755FF] hover:underline"
+                  >
+                    Upgrade
+                  </button>
+                </div>
+                <p className="text-[11px] font-semibold text-stone-400 mt-1">
+                  5,000 words limit per scan
+                </p>
+              </div>
+            </div>
+
+            {/* User Profile Insights & Recent Scans */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+              
+              {/* Onboarding Survey profile summary */}
+              <div className="bg-white border border-stone-200/50 rounded-[32px] p-6 md:p-8 shadow-[0_15px_40px_rgba(28,25,23,0.015)] flex flex-col gap-6">
+                <div>
+                  <h3 className="text-lg font-bold text-stone-900 mb-1">Your Onboarding Profile</h3>
+                  <p className="text-stone-400 text-xs font-medium">Customized based on your onboarding answers.</p>
+                </div>
+
+                {surveyData ? (
+                  <div className="flex flex-col gap-4">
+                    <div className="flex justify-between items-center py-2.5 border-b border-stone-100">
+                      <span className="text-xs font-bold text-stone-400 uppercase tracking-wider">Primary Role</span>
+                      <span className="text-sm font-semibold text-stone-800 bg-[#7B82FF]/10 text-[#7B82FF] px-3 py-1 rounded-full">{surveyData.role || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2.5 border-b border-stone-100">
+                      <span className="text-xs font-bold text-stone-400 uppercase tracking-wider">Experience Level</span>
+                      <span className="text-[13px] font-semibold text-stone-800">{surveyData.experience || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2.5 border-b border-stone-100">
+                      <span className="text-xs font-bold text-stone-400 uppercase tracking-wider">Usage Frequency</span>
+                      <span className="text-[13px] font-semibold text-stone-800">{surveyData.frequency || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2.5 border-b border-stone-100">
+                      <span className="text-xs font-bold text-stone-400 uppercase tracking-wider">AI Detector Familiarity</span>
+                      <span className="text-[13px] font-semibold text-stone-800">{surveyData.detectorUsed || 'N/A'}</span>
+                    </div>
+                    {surveyData.helpText && (
+                      <div className="flex flex-col gap-2 pt-2 text-left">
+                        <span className="text-xs font-bold text-stone-400 uppercase tracking-wider">Specific Assistance Request</span>
+                        <div className="text-xs font-medium text-stone-600 bg-stone-50 rounded-2xl p-4 border border-stone-200/40 italic">
+                          "{surveyData.helpText}"
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="py-8 flex flex-col items-center justify-center text-center gap-2">
+                    <div className="w-10 h-10 bg-stone-100 text-stone-400 rounded-full flex items-center justify-center">
+                      <ShieldCheck size={20} />
+                    </div>
+                    <span className="text-stone-400 text-xs font-bold uppercase tracking-wider">No Profile Data</span>
+                    <p className="text-stone-400 text-xs max-w-[200px]">You skipped onboarding or completed it elsewhere.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Recent Scan History */}
+              <div className="bg-white border border-stone-200/50 rounded-[32px] p-6 md:p-8 shadow-[0_15px_40px_rgba(28,25,23,0.015)] flex flex-col gap-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold text-stone-900 mb-1">Recent Activity</h3>
+                    <p className="text-stone-400 text-xs font-medium">Your most recent scans.</p>
+                  </div>
+                  <button 
+                    onClick={() => setActiveTab('detector')}
+                    className="text-xs font-bold text-[#7755FF] hover:underline"
+                  >
+                    View All
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-4">
+                  {[
+                    { filename: "assignment_final.txt", score: 16, time: "2 hours ago" },
+                    { filename: "blog_post_draft.txt", score: 2, time: "1 day ago" },
+                    { filename: "research_abstract.txt", score: 88, time: "2 days ago" },
+                  ].map((scan, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3.5 bg-stone-50/50 border border-stone-100 rounded-2xl">
+                      <div className="flex items-center gap-3 text-left">
+                        <div className="p-2 bg-white border border-stone-200/60 rounded-xl">
+                          <CheckCircle size={16} className={scan.score > 50 ? "text-amber-500" : "text-[#1FA463]"} />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[13px] font-bold text-stone-800">{scan.filename}</span>
+                          <span className="text-[11px] font-semibold text-stone-400">{scan.time}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-[11px] font-extrabold px-2.5 py-1 rounded-full ${
+                          scan.score > 50 
+                            ? 'bg-amber-50 text-amber-600 border border-amber-100' 
+                            : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                        }`}>
+                          {scan.score}% AI
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
         {activeTab === 'detector' && (
           <>
             <h1 className="text-3xl sm:text-4xl font-bold text-stone-800 mb-6 text-center tracking-tight">
@@ -1323,6 +1611,339 @@ const Detector = () => {
         {activeTab !== 'account' && <Footer className="!mt-16 md:!mt-24" />}
       </main>
 
+      {/* Onboarding Survey Popup Modal */}
+      {showSurveyModal && (
+        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl bg-white border border-stone-200/50 rounded-[32px] p-8 md:p-10 shadow-2xl relative overflow-hidden animate-in fade-in zoom-in duration-300">
+            {/* Background elements inside modal */}
+            <div className="absolute -top-[50px] -right-[50px] w-[200px] h-[200px] bg-gradient-to-br from-[#7755FF]/5 to-[#4F33FF]/5 rounded-full blur-2xl pointer-events-none"></div>
+            
+            {isSuccess ? (
+              <div className="py-12 flex flex-col items-center justify-center text-center gap-5">
+                <div className="w-16 h-16 bg-[#1FA463]/10 text-[#1FA463] rounded-full flex items-center justify-center animate-bounce">
+                  <Check size={32} strokeWidth={3} />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-2xl font-black text-stone-900 tracking-tight">Survey Completed!</h3>
+                  <p className="text-stone-500 font-semibold text-sm max-w-sm">
+                    Thank you for your valuable feedback. Preparing your dashboard...
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-6">
+                
+                {/* Header & Progress Bar */}
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between text-xs font-bold text-stone-400 uppercase tracking-widest">
+                    <span>Onboarding Survey</span>
+                    <span>Step {onboardingStep} of 4</span>
+                  </div>
+                  
+                  {/* Progress Line */}
+                  <div className="h-1.5 w-full bg-stone-200/60 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-[#7755FF] to-[#1FA463] rounded-full transition-all duration-300"
+                      style={{ width: `${(onboardingStep / 4) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Step contents */}
+                <div className="min-h-[300px] flex flex-col justify-start gap-6 py-2">
+                  
+                  {/* Step 1: Role & Experience */}
+                  {onboardingStep === 1 && (
+                    <div className="flex flex-col gap-6 text-left">
+                      <div className="flex flex-col gap-3">
+                        <label className="text-lg font-bold text-stone-900 font-sans">
+                          {onboardingQuestions.role.question}
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {onboardingQuestions.role.options.map((opt) => {
+                            const isSelected = onboardingData.role === opt;
+                            return (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => handleOnboardingSelect('role', opt)}
+                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${
+                                  isSelected 
+                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm shadow-[#7B82FF]/10' 
+                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
+                                }`}
+                              >
+                                <span>{opt}</span>
+                                {isSelected && <Check size={16} strokeWidth={3} />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-3">
+                        <label className="text-lg font-bold text-stone-900 font-sans">
+                          {onboardingQuestions.experience.question}
+                        </label>
+                        <div className="flex flex-wrap gap-3">
+                          {onboardingQuestions.experience.options.map((opt) => {
+                            const isSelected = onboardingData.experience === opt;
+                            return (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => handleOnboardingSelect('experience', opt)}
+                                className={`flex-1 min-w-[100px] px-4 py-3 rounded-2xl border text-center text-sm font-semibold transition-all ${
+                                  isSelected 
+                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm shadow-[#7B82FF]/10' 
+                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
+                                }`}
+                              >
+                                {opt}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 2: AI Detector Usage & Source */}
+                  {onboardingStep === 2 && (
+                    <div className="flex flex-col gap-6 text-left">
+                      <div className="flex flex-col gap-3">
+                        <label className="text-lg font-bold text-stone-900 font-sans">
+                          {onboardingQuestions.detectorUsed.question}
+                        </label>
+                        <div className="flex flex-col gap-2.5">
+                          {onboardingQuestions.detectorUsed.options.map((opt) => {
+                            const isSelected = onboardingData.detectorUsed === opt;
+                            return (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => handleOnboardingSelect('detectorUsed', opt)}
+                                className={`px-5 py-3.5 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${
+                                  isSelected 
+                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm' 
+                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
+                                }`}
+                              >
+                                <span>{opt}</span>
+                                {isSelected && <Check size={16} strokeWidth={3} />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-3">
+                        <label className="text-lg font-bold text-stone-900 font-sans">
+                          {onboardingQuestions.heardAboutUs.question}
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {onboardingQuestions.heardAboutUs.options.map((opt) => {
+                            const isSelected = onboardingData.heardAboutUs === opt;
+                            return (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => handleOnboardingSelect('heardAboutUs', opt)}
+                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${
+                                  isSelected 
+                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm' 
+                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
+                                }`}
+                              >
+                                <span>{opt}</span>
+                                {isSelected && <Check size={16} strokeWidth={3} />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 3: Purpose & Frequency */}
+                  {onboardingStep === 3 && (
+                    <div className="flex flex-col gap-6 text-left">
+                      <div className="flex flex-col gap-3">
+                        <label className="text-lg font-bold text-stone-900 font-sans">
+                          {onboardingQuestions.purpose.question}
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {onboardingQuestions.purpose.options.map((opt) => {
+                            const isSelected = onboardingData.purpose === opt;
+                            return (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => handleOnboardingSelect('purpose', opt)}
+                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${
+                                  isSelected 
+                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm' 
+                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
+                                }`}
+                              >
+                                <span>{opt}</span>
+                                {isSelected && <Check size={16} strokeWidth={3} />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-3">
+                        <label className="text-lg font-bold text-stone-900 font-sans">
+                          {onboardingQuestions.frequency.question}
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {onboardingQuestions.frequency.options.map((opt) => {
+                            const isSelected = onboardingData.frequency === opt;
+                            return (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => handleOnboardingSelect('frequency', opt)}
+                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${
+                                  isSelected 
+                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm' 
+                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
+                                }`}
+                              >
+                                <span>{opt}</span>
+                                {isSelected && <Check size={16} strokeWidth={3} />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 4: Updates & Submission */}
+                  {onboardingStep === 4 && (
+                    <div className="flex flex-col gap-5 justify-center items-center py-4 text-center">
+                      <div className="w-14 h-14 bg-gradient-to-br from-[#7755FF]/20 to-[#7755FF]/5 rounded-2xl flex items-center justify-center mb-1">
+                        <Sparkles size={28} className="text-[#7755FF]" />
+                      </div>
+                      <div className="text-center max-w-md flex flex-col gap-1.5">
+                        <h4 className="text-2xl font-black text-stone-900 leading-tight">Join the VeritasAI Community!</h4>
+                        <p className="text-stone-500 font-medium text-sm leading-relaxed">
+                          We post regular product tips, AI detection research insights, and new feature updates.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col gap-2 w-full max-w-sm mt-1 text-left">
+                        <label className="text-sm font-bold text-stone-700">
+                          {onboardingQuestions.updates.question}
+                        </label>
+                        <div className="flex gap-3">
+                          {onboardingQuestions.updates.options.map((opt) => {
+                            const isSelected = onboardingData.updates === opt;
+                            return (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => handleOnboardingSelect('updates', opt)}
+                                className={`flex-1 py-2.5 rounded-xl border text-center text-xs font-bold transition-all ${
+                                  isSelected 
+                                    ? 'bg-[#1FA463]/5 border-[#1FA463] text-[#1FA463] shadow-sm' 
+                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
+                                }`}
+                              >
+                                {opt}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-2 w-full max-w-sm text-left">
+                        <label className="text-sm font-bold text-stone-700">
+                          {onboardingQuestions.helpText.question}
+                        </label>
+                        <textarea
+                          value={onboardingData.helpText}
+                          onChange={(e) => handleOnboardingSelect('helpText', e.target.value)}
+                          placeholder="Type your response here..."
+                          rows={2.5}
+                          className="w-full px-4 py-3 rounded-2xl border border-stone-200 bg-white text-sm font-medium text-stone-800 placeholder-stone-400 focus:outline-none focus:border-[#7B82FF] focus:ring-1 focus:ring-[#7B82FF] transition-all resize-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+
+                {/* Footer Buttons */}
+                <div className="flex items-center justify-between border-t border-stone-100 pt-6">
+                  
+                  {/* Back button */}
+                  {onboardingStep > 1 ? (
+                    <button
+                      type="button"
+                      onClick={handlePrevStep}
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-2xl border border-stone-200 text-stone-600 hover:bg-stone-50 hover:text-stone-800 text-sm font-bold transition"
+                    >
+                      <ArrowLeft size={16} />
+                      Back
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSkipOnboarding}
+                      className="text-stone-400 hover:text-stone-600 text-sm font-bold transition px-2 py-2 cursor-pointer"
+                    >
+                      Skip Onboarding
+                    </button>
+                  )}
+
+                  {/* Next / Submit button */}
+                  {onboardingStep < 4 ? (
+                    <button
+                      type="button"
+                      onClick={handleNextStep}
+                      disabled={
+                        (onboardingStep === 1 && (!onboardingData.role || !onboardingData.experience)) ||
+                        (onboardingStep === 2 && (!onboardingData.detectorUsed || !onboardingData.heardAboutUs)) ||
+                        (onboardingStep === 3 && (!onboardingData.purpose || !onboardingData.frequency))
+                      }
+                      className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl text-white text-sm font-bold transition shadow-md hover:shadow-lg ${
+                        ((onboardingStep === 1 && (!onboardingData.role || !onboardingData.experience)) ||
+                         (onboardingStep === 2 && (!onboardingData.detectorUsed || !onboardingData.heardAboutUs)) ||
+                         (onboardingStep === 3 && (!onboardingData.purpose || !onboardingData.frequency)))
+                          ? 'bg-stone-300 text-stone-500 cursor-not-allowed shadow-none'
+                          : 'bg-[#7B82FF] hover:bg-[#6870fa]'
+                      }`}
+                    >
+                      Next
+                      <ArrowRight size={16} />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSubmitOnboarding}
+                      disabled={isSubmitting || !onboardingData.updates}
+                      className={`flex items-center gap-2 px-8 py-2.5 rounded-2xl text-white text-sm font-bold transition shadow-md hover:shadow-lg ${
+                        isSubmitting || !onboardingData.updates
+                          ? 'bg-stone-300 text-stone-500 cursor-not-allowed shadow-none'
+                          : 'bg-[#1FA463] hover:bg-[#178a52] shadow-[#1FA463]/15'
+                      }`}
+                    >
+                      {isSubmitting ? 'Submitting...' : 'Submit Answers'}
+                    </button>
+                  )}
+
+                </div>
+
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
     </div>
   );
 };

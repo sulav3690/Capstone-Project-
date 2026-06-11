@@ -14,13 +14,11 @@ const PaymentContent = () => {
   const router = useRouter();
   const { showToast } = useToast();
   const plan = { name: searchParams.get('planName') || 'Monthly Plan', price: searchParams.get('planPrice') || '$20' };
-  const [activeTab, setActiveTab] = useState('card');
+  const [activeTab, setActiveTab] = useState('esewa');
 
   const tabs = [
-    { id: 'card', name: 'Credit Card', icon: CardIcon },
-    { id: 'debit', name: 'Debit Card', icon: CardIcon },
-    { id: 'paypal', name: 'Paypal', icon: Wallet },
-    { id: 'google', name: 'Google Pay', icon: Landmark },
+    { id: 'esewa', name: 'eSewa Wallet', icon: Wallet },
+    { id: 'banking', name: 'Mobile / Internet Banking', icon: Landmark },
   ];
 
   return (
@@ -83,21 +81,28 @@ const PaymentContent = () => {
           </div>
 
           <Card className="flex-1">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="md:col-span-2">
-                <Input label="Cardholder Name" placeholder="John Doe" />
+            {activeTab === 'esewa' ? (
+              <div className="grid grid-cols-1 gap-6">
+                <div>
+                  <Input label="eSewa ID (Mobile Number)" placeholder="98XXXXXXXX" type="tel" />
+                </div>
+                <div>
+                  <Input label="Account Holder Name" placeholder="John Doe" />
+                </div>
               </div>
-              <div className="md:col-span-2">
-                <Input label="Card Number" placeholder="0000 0000 0000 0000" />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2">
+                  <Input label="Bank Name" placeholder="e.g. Nabil Bank, Global IME Bank" />
+                </div>
+                <div className="md:col-span-2">
+                  <Input label="Account Number" placeholder="123456789012" />
+                </div>
+                <div className="md:col-span-2">
+                  <Input label="Account Holder Name" placeholder="John Doe" />
+                </div>
               </div>
-              <Input label="Expiry Date" placeholder="MM/YY" />
-              <Input label="CVV" placeholder="123" />
-              <div className="md:col-span-2">
-                <Input label="Billing Address" placeholder="123 Main St, New York" />
-              </div>
-              <Input label="Country" placeholder="United States" />
-              <Input label="Zip Code" placeholder="10001" />
-            </div>
+            )}
 
             <Button className="w-full py-4 text-lg font-bold mt-10 shadow-lg shadow-primary-green/20" onClick={() => showToast('Payment Successful!', 'success')}>
               Complete Payment - ${parseInt(plan.price.replace('$', '')) + 2}.00

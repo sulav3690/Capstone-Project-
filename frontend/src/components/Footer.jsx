@@ -1,5 +1,6 @@
 import React from 'react';
 import { Instagram, MessageSquare, Twitter } from 'lucide-react';
+import Link from 'next/link';
 
 const Footer = ({ className = "" }) => {
   return (
@@ -26,13 +27,13 @@ const Footer = ({ className = "" }) => {
               <div className="flex flex-col gap-3">
                 <h4 className="text-stone-900 font-extrabold text-sm tracking-tight">Products</h4>
                 <ul className="flex flex-col gap-2.5 text-xs font-semibold text-stone-500">
-                  <li><a href="#" className="hover:text-stone-900 transition-colors">AI Detector</a></li>
-                  <li><a href="#" className="hover:text-[#1FA463] transition-colors">Misinformation Signals</a></li>
-                  <li><a href="#" className="hover:text-stone-900 transition-colors">Plagiarism Check</a></li>
+                  <li><Link href="/dashboard" className="hover:text-stone-900 transition-colors">AI Detector</Link></li>
+                  <li><Link href="/dashboard" className="hover:text-[#1FA463] transition-colors">Misinformation Signals</Link></li>
+                  <li><Link href="/dashboard" className="hover:text-stone-900 transition-colors">Plagiarism Check</Link></li>
                 </ul>
               </div>
               <div className="text-[11px] font-semibold text-stone-400 mt-6 hover:text-stone-700 transition-colors">
-                <a href="#">Privacy Policy</a>
+                <Link href="/privacy">Privacy Policy</Link>
               </div>
             </div>
 
@@ -41,13 +42,13 @@ const Footer = ({ className = "" }) => {
               <div className="flex flex-col gap-3">
                 <h4 className="text-stone-900 font-extrabold text-sm tracking-tight">Help</h4>
                 <ul className="flex flex-col gap-2.5 text-xs font-semibold text-stone-500">
-                  <li><a href="#" className="hover:text-stone-900 transition-colors">FAQs</a></li>
-                  <li><a href="#" className="hover:text-stone-900 transition-colors">Plans & Pricing</a></li>
-                  <li><a href="#" className="hover:text-stone-900 transition-colors">Contact Support</a></li>
+                  <li><Link href="/#faq" className="hover:text-stone-900 transition-colors">FAQs</Link></li>
+                  <li><Link href="/subscription" className="hover:text-stone-900 transition-colors">Plans & Pricing</Link></li>
+                  <li><Link href="/contact" className="hover:text-stone-900 transition-colors">Contact Support</Link></li>
                 </ul>
               </div>
               <div className="text-[11px] font-semibold text-stone-400 mt-6 hover:text-stone-700 transition-colors">
-                <a href="#">Terms & Conditions</a>
+                <Link href="/terms">Terms & Conditions</Link>
               </div>
             </div>
 

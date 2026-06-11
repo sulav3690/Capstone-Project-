@@ -148,13 +148,14 @@ export default function Register() {
                   <option value="" disabled>Choose your account type</option>
                   <option value="student">Student</option>
                   <option value="teacher">Teacher</option>
+                  <option value="other">Other</option>
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-500">
                   ▼
                 </div>
               </div>
               <p className="text-xs text-gray-500 italic text-center">
-                Choose &apos;Student&apos; or &apos;Teacher&apos;
+                Choose &apos;Student&apos;, &apos;Teacher&apos;, or &apos;Other&apos;
               </p>
             </div>
           </div>
