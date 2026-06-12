@@ -149,8 +149,8 @@ const AppLayout = ({ children, currentView, setCurrentView }) => {
           <button onClick={() => setCurrentView('contact')} className="hover:text-gray-600">Contact Support</button>
         </div>
         <div className="flex items-center gap-2 mb-3">
-          <ShieldCheck size={20} className="text-[#1FA463]" />
-          <span className="font-bold text-gray-500 text-[15px]">VeritasAI</span>
+          <ShieldCheck size={20} className="text-[#7755FF]" />
+          <span className="font-normal text-gray-500 text-[15px]">Veritas<span className="font-bold">AI</span></span>
         </div>
         <p className="text-[#9ca3af] text-[11px] font-medium">© 2026 VeritasAI. All rights reserved.</p>
       </footer>
@@ -402,17 +402,17 @@ const LoginView = ({ setCurrentView, setDisplayName, setEmailAddress }) => {
           <div className="bg-[#F0F4F9] w-full max-w-[1040px] sm:rounded-[28px] overflow-hidden flex flex-col pt-6 pb-16 min-h-screen sm:min-h-0 sm:shadow-sm">
             <div className="flex items-center gap-2 px-10 mb-10 sm:mt-0 mt-4">
               <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-[18px] h-[18px] pointer-events-none" />
-              <span className="text-[#444746] font-medium text-[15px]">Sign in with Google</span>
+              <span className="text-[#444746] font-normal text-[15px]">Sign in with Google</span>
             </div>
 
             <div className="flex flex-col md:flex-row px-10 gap-10 md:gap-20 md:pr-24">
                <div className="flex-1 max-w-[420px]">
                  <div className="flex flex-col gap-5">
-                   <div className="w-12 h-12 flex items-center justify-start">
-                     <ShieldCheck className="text-[#1FA463] w-[38px] h-[38px]" strokeWidth={2.5} />
-                   </div>
+                   <div className="w-[38px] h-[38px] flex items-center justify-center bg-gradient-to-br from-[#7755FF] to-[#4F33FF] rounded-lg text-white shadow mb-1">
+                      <ShieldCheck size={20} strokeWidth={2.5} />
+                    </div>
                    <h1 className="text-[36px] font-normal leading-[1.2] text-[#1F1F1F]">Choose an account</h1>
-                   <p className="text-[16px] text-[#1F1F1F] mt-[-5px]">to continue to <span className="text-[#0b57d0] font-medium hover:underline cursor-pointer">VeritasAI</span></p>
+                   <p className="text-[16px] text-[#1F1F1F] mt-[-5px]">to continue to <span className="text-[#7755FF] font-normal hover:underline cursor-pointer">Veritas<span className="font-bold">AI</span></span></p>
                  </div>
                </div>
 
@@ -492,8 +492,13 @@ const LoginView = ({ setCurrentView, setDisplayName, setEmailAddress }) => {
 
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="w-full max-w-sm bg-[#F0F4F8] rounded-2xl shadow-md p-10 flex flex-col items-center gap-6 relative z-20">
-            <div className="flex flex-col items-center gap-1">
-              <h1 className="text-3xl font-extrabold text-[#1FA463] tracking-tight">VeritasAI</h1>
+            <div className="flex flex-col items-center gap-2">
+              <div className="bg-gradient-to-br from-[#7755FF] to-[#4F33FF] p-[6px] rounded-lg shadow-md hover:scale-105 transition-transform duration-200">
+                <ShieldCheck size={24} className="text-white" strokeWidth={2.5} />
+              </div>
+              <h1 className="text-2xl font-normal text-stone-900 tracking-tight">
+                Veritas<span className="font-bold">AI</span>
+              </h1>
               <p className="text-gray-500 text-sm">An AI detector System</p>
             </div>
 
@@ -776,20 +781,7 @@ const DashboardView = ({
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const [showSurveyModal, setShowSurveyModal] = useState(false);
-  const [onboardingStep, setOnboardingStep] = useState(1);
-  const [onboardingData, setOnboardingData] = useState({
-    role: '',
-    experience: '',
-    detectorUsed: '',
-    heardAboutUs: '',
-    purpose: '',
-    frequency: '',
-    updates: '',
-    helpText: ''
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+  const router = useRouter();
   const [surveyData, setSurveyData] = useState(null);
 
   const fileInputRef = useRef(null);
@@ -798,38 +790,13 @@ const DashboardView = ({
   useEffect(() => {
     const completed = safeLocalStorage.getItem('veritas_onboarding_completed');
     if (!completed) {
-      setShowSurveyModal(true);
+      router.push('/survey');
     } else if (completed !== 'skipped') {
       try {
         setSurveyData(JSON.parse(completed));
       } catch (e) { /* ignore error */ }
     }
-  }, []);
-
-  const handleOnboardingSelect = (field, value) => {
-    setOnboardingData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleSkipOnboarding = () => {
-    safeLocalStorage.setItem('veritas_onboarding_completed', 'skipped');
-    setShowSurveyModal(false);
-  };
-
-  const handleSubmitOnboarding = () => {
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsSuccess(true);
-      safeLocalStorage.setItem('veritas_onboarding_completed', JSON.stringify(onboardingData));
-      setSurveyData(onboardingData);
-      setTimeout(() => {
-        setShowSurveyModal(false);
-        setIsSuccess(false);
-        setOnboardingStep(1);
-      }, 1500);
-    }, 1000);
-  };
+  }, [router]);
 
   const handleInput = (e) => {
     setError('');
@@ -918,11 +885,11 @@ const DashboardView = ({
         <div className={`flex flex-col gap-6 py-6 transition-all duration-300 ${isSidebarCollapsed ? 'px-3 items-center' : 'px-6'}`}>
           <div className="flex items-center gap-3 w-full cursor-pointer" onClick={() => setCurrentView('landing')}>
             <div className="bg-gradient-to-br from-[#7755FF] to-[#4F33FF] p-[6px] rounded-lg shadow-lg shrink-0">
-              <ShieldCheck size={22} className="text-white" />
+              <ShieldCheck size={22} className="text-white" strokeWidth={2.5} />
             </div>
             {!isSidebarCollapsed && (
-              <span className="font-bold text-[22px] tracking-tight text-stone-900 transition-all duration-300 whitespace-nowrap overflow-hidden">
-                VeritasAI
+              <span className="font-normal text-[22px] tracking-tight text-stone-900 transition-all duration-300 whitespace-nowrap overflow-hidden">
+                Veritas<span className="font-bold">AI</span>
               </span>
             )}
           </div>
@@ -1115,7 +1082,7 @@ const DashboardView = ({
                 ) : (
                   <div className="py-8 flex flex-col items-center justify-center text-center gap-2">
                     <span className="text-stone-400 text-xs font-bold uppercase tracking-wider">No Profile Data</span>
-                    <button onClick={() => setShowSurveyModal(true)} className="text-[#7B82FF] text-xs font-bold hover:underline cursor-pointer">Start Survey</button>
+                    <button onClick={() => router.push('/survey')} className="text-[#7B82FF] text-xs font-bold hover:underline cursor-pointer">Start Survey</button>
                   </div>
                 )}
               </div>
@@ -1336,7 +1303,7 @@ const DashboardView = ({
                 </div>
 
                 <button
-                  onClick={() => setCurrentView('checkout-weekly')}
+                  onClick={() => router.push('/payment?planName=Weekly%20Plan&planPrice=%245')}
                   className="w-full py-3 rounded-xl font-bold text-[13px] mb-8 transition-all duration-200 bg-stone-100 text-stone-800 hover:bg-stone-200/80 active:scale-98 cursor-pointer"
                 >
                   Subscribe Weekly
@@ -1368,7 +1335,7 @@ const DashboardView = ({
                 </div>
 
                 <button
-                  onClick={() => setCurrentView('checkout-monthly')}
+                  onClick={() => router.push('/payment?planName=Monthly%20Plan&planPrice=%2420')}
                   className="w-full py-3 rounded-xl font-bold text-[13px] mb-8 transition-all duration-200 bg-[#1FA463] text-white hover:bg-[#178a52] shadow-md shadow-[#1FA463]/20 active:scale-98 cursor-pointer"
                 >
                   Subscribe Monthly
@@ -1396,8 +1363,8 @@ const DashboardView = ({
                 </div>
 
                 <button
-                  onClick={() => setCurrentView('checkout-yearly')}
-                  className="w-full py-3 rounded-xl font-bold text-[13px] mb-8 transition-all duration-200 bg-stone-100 text-stone-800 hover:bg-stone-200/80 active:scale-98 cursor-pointer"
+                  onClick={() => router.push('/payment?planName=Yearly%20Plan&planPrice=%24250')}
+                  className="w-full py-3 rounded-xl font-bold text-[13px] mb-8 transition-all duration-200 bg-stone-100 text-stone-850 hover:bg-stone-200/80 active:scale-98 cursor-pointer"
                 >
                   Subscribe Yearly
                 </button>
@@ -1565,182 +1532,7 @@ const DashboardView = ({
         )}
       </main>
 
-      {showSurveyModal && (
-        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-white border border-stone-200/50 rounded-[32px] p-8 md:p-10 shadow-2xl relative overflow-hidden text-left">
-            {isSuccess ? (
-              <div className="py-12 flex flex-col items-center justify-center text-center gap-5">
-                <div className="w-16 h-16 bg-[#1FA463]/10 text-[#1FA463] rounded-full flex items-center justify-center animate-bounce">
-                  <Check size={32} strokeWidth={3} />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <h3 className="text-2xl font-black text-stone-900 tracking-tight">Survey Completed!</h3>
-                  <p className="text-stone-500 font-semibold text-sm max-w-sm">
-                    Thank you for your valuable feedback. Preparing your dashboard...
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between text-xs font-bold text-stone-400 uppercase tracking-widest">
-                    <span>Onboarding Survey</span>
-                    <span>Step {onboardingStep} of 4</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-stone-200/60 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-[#7755FF] to-[#1FA463] transition-all duration-300" style={{ width: `${(onboardingStep / 4) * 100}%` }} />
-                  </div>
-                </div>
 
-                <div className="min-h-[300px] flex flex-col justify-start gap-6 py-2">
-                  {onboardingStep === 1 && (
-                    <div className="flex flex-col gap-6">
-                      <div className="flex flex-col gap-3">
-                        <label className="text-lg font-bold text-stone-900">What best describes you?</label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {["Student", "Teacher", "Researcher", "Other"].map((opt) => (
-                            <button
-                              key={opt}
-                              type="button"
-                              onClick={() => handleOnboardingSelect('role', opt)}
-                              className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between cursor-pointer ${
-                                onboardingData.role === opt ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF]' : 'bg-white border-stone-200 text-stone-600'
-                              }`}
-                            >
-                              <span>{opt}</span>
-                              {onboardingData.role === opt && <Check size={16} />}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-3">
-                        <label className="text-lg font-bold text-stone-900">What is your experience level with AI tools?</label>
-                        <div className="flex gap-3">
-                          {["Beginner", "Intermediate", "Advanced"].map((opt) => (
-                            <button
-                              key={opt}
-                              type="button"
-                              onClick={() => handleOnboardingSelect('experience', opt)}
-                              className={`flex-1 py-3 rounded-2xl border text-center text-sm font-semibold transition-all cursor-pointer ${
-                                onboardingData.experience === opt ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF]' : 'bg-white border-stone-200 text-stone-600'
-                              }`}
-                            >
-                              {opt}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {onboardingStep === 2 && (
-                    <div className="flex flex-col gap-6">
-                      <div className="flex flex-col gap-3">
-                        <label className="text-lg font-bold text-stone-900">Have you used an AI detector before?</label>
-                        <div className="flex flex-col gap-2.5">
-                          {["Yes, frequently", "Yes, a few times", "No, this is my first time"].map((opt) => (
-                            <button
-                              key={opt}
-                              type="button"
-                              onClick={() => handleOnboardingSelect('detectorUsed', opt)}
-                              className={`px-5 py-3.5 rounded-2xl border text-left text-sm font-semibold transition-all cursor-pointer ${
-                                onboardingData.detectorUsed === opt ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF]' : 'bg-white border-stone-200 text-stone-600'
-                              }`}
-                            >
-                              {opt}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {onboardingStep === 3 && (
-                    <div className="flex flex-col gap-6">
-                      <div className="flex flex-col gap-3">
-                        <label className="text-lg font-bold text-stone-900">What do you plan to use this website for?</label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {["Checking assignments", "Detecting AI content", "Academic research", "Other"].map((opt) => (
-                            <button
-                              key={opt}
-                              type="button"
-                              onClick={() => handleOnboardingSelect('purpose', opt)}
-                              className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all cursor-pointer ${
-                                onboardingData.purpose === opt ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF]' : 'bg-white border-stone-200 text-stone-600'
-                              }`}
-                            >
-                              {opt}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {onboardingStep === 4 && (
-                    <div className="flex flex-col gap-5 justify-center items-center py-4 text-center">
-                      <h4 className="text-2xl font-black text-stone-900 leading-tight">Join the VeritasAI Community!</h4>
-                      <p className="text-stone-500 font-medium text-sm">We send tips and product updates occasionally.</p>
-                      
-                      <div className="flex flex-col gap-2 w-full max-w-sm mt-4 text-left">
-                        <label className="text-sm font-bold text-stone-700">Receive updates?</label>
-                        <div className="flex gap-3">
-                          {["Yes", "No"].map((opt) => (
-                            <button
-                              key={opt}
-                              type="button"
-                              onClick={() => handleOnboardingSelect('updates', opt)}
-                              className={`flex-1 py-2.5 rounded-xl border text-center text-xs font-bold transition cursor-pointer ${
-                                onboardingData.updates === opt ? 'bg-[#1FA463] text-white' : 'bg-white border-stone-200 text-stone-600'
-                              }`}
-                            >
-                              {opt}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between border-t border-stone-100 pt-6">
-                  {onboardingStep > 1 ? (
-                    <button type="button" onClick={() => setOnboardingStep(onboardingStep - 1)} className="flex items-center gap-2 px-5 py-2.5 rounded-2xl border border-stone-200 text-stone-600 hover:bg-stone-50 text-sm font-bold cursor-pointer">
-                      Back
-                    </button>
-                  ) : (
-                    <button type="button" onClick={handleSkipOnboarding} className="text-stone-400 hover:text-stone-600 text-sm font-bold cursor-pointer px-2 py-2">
-                      Skip Onboarding
-                    </button>
-                  )}
-
-                  {onboardingStep < 4 ? (
-                    <button
-                      type="button"
-                      onClick={() => setOnboardingStep(onboardingStep + 1)}
-                      className="flex items-center gap-2 px-6 py-2.5 rounded-2xl text-white text-sm font-bold bg-[#7B82FF] hover:bg-[#6870fa] cursor-pointer"
-                    >
-                      Next
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleSubmitOnboarding}
-                      disabled={isSubmitting || !onboardingData.updates}
-                      className={`flex items-center gap-2 px-8 py-2.5 rounded-2xl text-white text-sm font-bold cursor-pointer ${
-                        isSubmitting || !onboardingData.updates ? 'bg-stone-300' : 'bg-[#1FA463] hover:bg-[#178a52]'
-                      }`}
-                    >
-                      {isSubmitting ? 'Submitting...' : 'Submit Answers'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -1901,6 +1693,12 @@ const ReportView = ({ setCurrentView, scanResults }) => {
 
 // ─── Subscription / Pricing View ──────────────────────────────────────────────
 const SubscriptionView = ({ setCurrentView }) => {
+  const router = useRouter();
+
+  const handleSubscribe = (name, price) => {
+    router.push(`/payment?planName=${encodeURIComponent(name)}&planPrice=${encodeURIComponent(price)}`);
+  };
+
   return (
     <AppLayout currentView="subscription" setCurrentView={setCurrentView}>
       <div className="max-w-6xl mx-auto text-center mb-16 pt-6">
@@ -1919,7 +1717,7 @@ const SubscriptionView = ({ setCurrentView }) => {
           period="week"
           features={["50 detections", "Human vs AI", "Basic misinformation", "Standard speed"]}
           buttonText="Subscribe Weekly"
-          onSubscribe={() => setCurrentView('checkout-weekly')}
+          onSubscribe={() => handleSubscribe('Weekly Plan', '$5')}
         />
 
         <PlanCard
@@ -1929,7 +1727,7 @@ const SubscriptionView = ({ setCurrentView }) => {
           features={["Unlimited detections", "Humanized AI detection", "Advanced misinformation", "Detailed reports", "Faster processing"]}
           buttonText="Subscribe Monthly"
           highlighted={true}
-          onSubscribe={() => setCurrentView('checkout-monthly')}
+          onSubscribe={() => handleSubscribe('Monthly Plan', '$20')}
         />
 
         <PlanCard
@@ -1938,7 +1736,7 @@ const SubscriptionView = ({ setCurrentView }) => {
           period="year"
           features={["Unlimited detection", "Advanced features", "Downloadable reports", "API access", "Priority support"]}
           buttonText="Subscribe Yearly"
-          onSubscribe={() => setCurrentView('checkout-yearly')}
+          onSubscribe={() => handleSubscribe('Yearly Plan', '$250')}
         />
       </div>
     </AppLayout>

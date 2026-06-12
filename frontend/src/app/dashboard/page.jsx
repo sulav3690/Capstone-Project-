@@ -157,12 +157,10 @@ const Detector = () => {
   const resultsRef = useRef(null);
 
   const handleSubscribe = (planName) => {
-    setSubscriptionPlan(planName);
-    showToast(`Successfully upgraded to ${planName} Plan! Premium features unlocked.`, 'success');
-    setActiveTab('detector');
-    setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 100);
+    let price = '$20';
+    if (planName === 'Weekly') price = '$5';
+    if (planName === 'Yearly') price = '$250';
+    router.push(`/payment?planName=${encodeURIComponent(planName + ' Plan')}&planPrice=${encodeURIComponent(price)}`);
   };
 
   // Auto-collapse sidebar on screen sizes below 1024px for responsiveness
@@ -178,26 +176,12 @@ const Detector = () => {
   // Onboarding survey states
   const [surveyData, setSurveyData] = useState(null);
   const [isMounted, setIsMounted] = useState(false);
-  const [showSurveyModal, setShowSurveyModal] = useState(false);
-  const [onboardingStep, setOnboardingStep] = useState(1);
-  const [onboardingData, setOnboardingData] = useState({
-    role: '',
-    experience: '',
-    detectorUsed: '',
-    heardAboutUs: '',
-    purpose: '',
-    frequency: '',
-    updates: '',
-    helpText: ''
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
     const completed = safeLocalStorage.getItem('veritas_onboarding_completed');
     if (!completed) {
-      setShowSurveyModal(true);
+      router.push('/survey');
     } else if (completed !== 'skipped') {
       try {
         setSurveyData(JSON.parse(completed));
@@ -205,75 +189,16 @@ const Detector = () => {
         // ignore errors
       }
     }
-  }, [router]);
 
-  const handleOnboardingSelect = (field, value) => {
-    setOnboardingData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleNextStep = () => {
-    setOnboardingStep(prev => prev + 1);
-  };
-
-  const handlePrevStep = () => {
-    setOnboardingStep(prev => prev - 1);
-  };
-
-  const handleSkipOnboarding = () => {
-    safeLocalStorage.setItem('veritas_onboarding_completed', 'skipped');
-    setShowSurveyModal(false);
-    setOnboardingStep(1);
-  };
-
-  const handleSubmitOnboarding = () => {
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsSuccess(true);
-      safeLocalStorage.setItem('veritas_onboarding_completed', JSON.stringify(onboardingData));
-      setSurveyData(onboardingData);
-      setTimeout(() => {
-        setShowSurveyModal(false);
-        setIsSuccess(false);
-        setOnboardingStep(1);
-      }, 1500);
-    }, 1000);
-  };
-
-  const onboardingQuestions = {
-    role: {
-      question: "What best describes you?",
-      options: ["Student", "Teacher", "Researcher", "Content Creator", "Business Professional", "Other"]
-    },
-    heardAboutUs: {
-      question: "How did you hear about us?",
-      options: ["Google Search", "Social Media", "Friend/Colleague", "YouTube", "School/University", "Other"]
-    },
-    detectorUsed: {
-      question: "Have you used an AI detector before?",
-      options: ["Yes, frequently", "Yes, a few times", "No, this is my first time"]
-    },
-    purpose: {
-      question: "What do you plan to use this website for?",
-      options: ["Checking assignments", "Detecting AI-generated content", "Academic research", "Content writing", "Business use", "Other"]
-    },
-    frequency: {
-      question: "How often do you expect to use this platform?",
-      options: ["Daily", "Weekly", "Monthly", "Occasionally"]
-    },
-    updates: {
-      question: "Would you like product updates and tips?",
-      options: ["Yes", "No"]
-    },
-    experience: {
-      question: "What is your experience level with AI tools?",
-      options: ["Beginner", "Intermediate", "Advanced"]
-    },
-    helpText: {
-      question: "Is there anything specific you'd like us to help you with?"
+    // Load active tab from URL query parameters if present
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab) {
+        setActiveTab(tab);
+      }
     }
-  };
+  }, [router]);
 
   const handleSaveGeneral = (e) => {
     e.preventDefault();
@@ -483,8 +408,8 @@ const Detector = () => {
               <ShieldCheck size={22} className="text-white" strokeWidth={2.5} />
             </div>
             {!isSidebarCollapsed && (
-              <span className="font-bold text-[22px] tracking-tight text-stone-900 transition-all duration-300 whitespace-nowrap overflow-hidden">
-                VeritasAI
+              <span className="font-normal text-[22px] tracking-tight text-stone-900 transition-all duration-300 whitespace-nowrap overflow-hidden">
+                Veritas<span className="font-bold">AI</span>
               </span>
             )}
           </div>
@@ -1615,331 +1540,6 @@ const Detector = () => {
         )}
         {activeTab !== 'account' && <Footer className="!mt-16 md:!mt-24" />}
       </main>
-
-      {/* Onboarding Survey Popup Modal */}
-      {showSurveyModal && (
-        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-white border border-stone-200/50 rounded-[32px] p-8 md:p-10 shadow-2xl relative overflow-hidden animate-in fade-in zoom-in duration-300">
-            {/* Background elements inside modal */}
-            <div className="absolute -top-[50px] -right-[50px] w-[200px] h-[200px] bg-gradient-to-br from-[#7755FF]/5 to-[#4F33FF]/5 rounded-full blur-2xl pointer-events-none"></div>
-
-            {isSuccess ? (
-              <div className="py-12 flex flex-col items-center justify-center text-center gap-5">
-                <div className="w-16 h-16 bg-[#1FA463]/10 text-[#1FA463] rounded-full flex items-center justify-center animate-bounce">
-                  <Check size={32} strokeWidth={3} />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <h3 className="text-2xl font-black text-stone-900 tracking-tight">Survey Completed!</h3>
-                  <p className="text-stone-500 font-semibold text-sm max-w-sm">
-                    Thank you for your valuable feedback. Preparing your dashboard...
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-6">
-
-                {/* Header & Progress Bar */}
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between text-xs font-bold text-stone-400 uppercase tracking-widest">
-                    <span>Onboarding Survey</span>
-                    <span>Step {onboardingStep} of 4</span>
-                  </div>
-
-                  {/* Progress Line */}
-                  <div className="h-1.5 w-full bg-stone-200/60 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-[#7755FF] to-[#1FA463] rounded-full transition-all duration-300"
-                      style={{ width: `${(onboardingStep / 4) * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Step contents */}
-                <div className="min-h-[300px] flex flex-col justify-start gap-6 py-2">
-
-                  {/* Step 1: Role & Experience */}
-                  {onboardingStep === 1 && (
-                    <div className="flex flex-col gap-6 text-left">
-                      <div className="flex flex-col gap-3">
-                        <label className="text-lg font-bold text-stone-900 font-sans">
-                          {onboardingQuestions.role.question}
-                        </label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {onboardingQuestions.role.options.map((opt) => {
-                            const isSelected = onboardingData.role === opt;
-                            return (
-                              <button
-                                key={opt}
-                                type="button"
-                                onClick={() => handleOnboardingSelect('role', opt)}
-                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${isSelected
-                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm shadow-[#7B82FF]/10'
-                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                  }`}
-                              >
-                                <span>{opt}</span>
-                                {isSelected && <Check size={16} strokeWidth={3} />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-3">
-                        <label className="text-lg font-bold text-stone-900 font-sans">
-                          {onboardingQuestions.experience.question}
-                        </label>
-                        <div className="flex flex-wrap gap-3">
-                          {onboardingQuestions.experience.options.map((opt) => {
-                            const isSelected = onboardingData.experience === opt;
-                            return (
-                              <button
-                                key={opt}
-                                type="button"
-                                onClick={() => handleOnboardingSelect('experience', opt)}
-                                className={`flex-1 min-w-[100px] px-4 py-3 rounded-2xl border text-center text-sm font-semibold transition-all ${isSelected
-                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm shadow-[#7B82FF]/10'
-                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                  }`}
-                              >
-                                {opt}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 2: AI Detector Usage & Source */}
-                  {onboardingStep === 2 && (
-                    <div className="flex flex-col gap-6 text-left">
-                      <div className="flex flex-col gap-3">
-                        <label className="text-lg font-bold text-stone-900 font-sans">
-                          {onboardingQuestions.detectorUsed.question}
-                        </label>
-                        <div className="flex flex-col gap-2.5">
-                          {onboardingQuestions.detectorUsed.options.map((opt) => {
-                            const isSelected = onboardingData.detectorUsed === opt;
-                            return (
-                              <button
-                                key={opt}
-                                type="button"
-                                onClick={() => handleOnboardingSelect('detectorUsed', opt)}
-                                className={`px-5 py-3.5 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${isSelected
-                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm'
-                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                  }`}
-                              >
-                                <span>{opt}</span>
-                                {isSelected && <Check size={16} strokeWidth={3} />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-3">
-                        <label className="text-lg font-bold text-stone-900 font-sans">
-                          {onboardingQuestions.heardAboutUs.question}
-                        </label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {onboardingQuestions.heardAboutUs.options.map((opt) => {
-                            const isSelected = onboardingData.heardAboutUs === opt;
-                            return (
-                              <button
-                                key={opt}
-                                type="button"
-                                onClick={() => handleOnboardingSelect('heardAboutUs', opt)}
-                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${isSelected
-                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm'
-                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                  }`}
-                              >
-                                <span>{opt}</span>
-                                {isSelected && <Check size={16} strokeWidth={3} />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 3: Purpose & Frequency */}
-                  {onboardingStep === 3 && (
-                    <div className="flex flex-col gap-6 text-left">
-                      <div className="flex flex-col gap-3">
-                        <label className="text-lg font-bold text-stone-900 font-sans">
-                          {onboardingQuestions.purpose.question}
-                        </label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {onboardingQuestions.purpose.options.map((opt) => {
-                            const isSelected = onboardingData.purpose === opt;
-                            return (
-                              <button
-                                key={opt}
-                                type="button"
-                                onClick={() => handleOnboardingSelect('purpose', opt)}
-                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${isSelected
-                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm'
-                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                  }`}
-                              >
-                                <span>{opt}</span>
-                                {isSelected && <Check size={16} strokeWidth={3} />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-3">
-                        <label className="text-lg font-bold text-stone-900 font-sans">
-                          {onboardingQuestions.frequency.question}
-                        </label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {onboardingQuestions.frequency.options.map((opt) => {
-                            const isSelected = onboardingData.frequency === opt;
-                            return (
-                              <button
-                                key={opt}
-                                type="button"
-                                onClick={() => handleOnboardingSelect('frequency', opt)}
-                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${isSelected
-                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm'
-                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                  }`}
-                              >
-                                <span>{opt}</span>
-                                {isSelected && <Check size={16} strokeWidth={3} />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 4: Updates & Submission */}
-                  {onboardingStep === 4 && (
-                    <div className="flex flex-col gap-5 justify-center items-center py-4 text-center">
-                      <div className="w-14 h-14 bg-gradient-to-br from-[#7755FF]/20 to-[#7755FF]/5 rounded-2xl flex items-center justify-center mb-1">
-                        <Sparkles size={28} className="text-[#7755FF]" />
-                      </div>
-                      <div className="text-center max-w-md flex flex-col gap-1.5">
-                        <h4 className="text-2xl font-black text-stone-900 leading-tight">Join the VeritasAI Community!</h4>
-                        <p className="text-stone-500 font-medium text-sm leading-relaxed">
-                          We post regular product tips, AI detection research insights, and new feature updates.
-                        </p>
-                      </div>
-
-                      <div className="flex flex-col gap-2 w-full max-w-sm mt-1 text-left">
-                        <label className="text-sm font-bold text-stone-700">
-                          {onboardingQuestions.updates.question}
-                        </label>
-                        <div className="flex gap-3">
-                          {onboardingQuestions.updates.options.map((opt) => {
-                            const isSelected = onboardingData.updates === opt;
-                            return (
-                              <button
-                                key={opt}
-                                type="button"
-                                onClick={() => handleOnboardingSelect('updates', opt)}
-                                className={`flex-1 py-2.5 rounded-xl border text-center text-xs font-bold transition-all ${isSelected
-                                    ? 'bg-[#1FA463]/5 border-[#1FA463] text-[#1FA463] shadow-sm'
-                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                  }`}
-                              >
-                                {opt}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-2 w-full max-w-sm text-left">
-                        <label className="text-sm font-bold text-stone-700">
-                          {onboardingQuestions.helpText.question}
-                        </label>
-                        <textarea
-                          value={onboardingData.helpText}
-                          onChange={(e) => handleOnboardingSelect('helpText', e.target.value)}
-                          placeholder="Type your response here..."
-                          rows={2.5}
-                          className="w-full px-4 py-3 rounded-2xl border border-stone-200 bg-white text-sm font-medium text-stone-800 placeholder-stone-400 focus:outline-none focus:border-[#7B82FF] focus:ring-1 focus:ring-[#7B82FF] transition-all resize-none"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                </div>
-
-                {/* Footer Buttons */}
-                <div className="flex items-center justify-between border-t border-stone-100 pt-6">
-
-                  {/* Back button */}
-                  {onboardingStep > 1 ? (
-                    <button
-                      type="button"
-                      onClick={handlePrevStep}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-2xl border border-stone-200 text-stone-600 hover:bg-stone-50 hover:text-stone-800 text-sm font-bold transition"
-                    >
-                      <ArrowLeft size={16} />
-                      Back
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleSkipOnboarding}
-                      className="text-stone-400 hover:text-stone-600 text-sm font-bold transition px-2 py-2 cursor-pointer"
-                    >
-                      Skip Onboarding
-                    </button>
-                  )}
-
-                  {/* Next / Submit button */}
-                  {onboardingStep < 4 ? (
-                    <button
-                      type="button"
-                      onClick={handleNextStep}
-                      disabled={
-                        (onboardingStep === 1 && (!onboardingData.role || !onboardingData.experience)) ||
-                        (onboardingStep === 2 && (!onboardingData.detectorUsed || !onboardingData.heardAboutUs)) ||
-                        (onboardingStep === 3 && (!onboardingData.purpose || !onboardingData.frequency))
-                      }
-                      className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl text-white text-sm font-bold transition shadow-md hover:shadow-lg ${((onboardingStep === 1 && (!onboardingData.role || !onboardingData.experience)) ||
-                          (onboardingStep === 2 && (!onboardingData.detectorUsed || !onboardingData.heardAboutUs)) ||
-                          (onboardingStep === 3 && (!onboardingData.purpose || !onboardingData.frequency)))
-                          ? 'bg-stone-300 text-stone-500 cursor-not-allowed shadow-none'
-                          : 'bg-[#7B82FF] hover:bg-[#6870fa]'
-                        }`}
-                    >
-                      Next
-                      <ArrowRight size={16} />
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleSubmitOnboarding}
-                      disabled={isSubmitting || !onboardingData.updates}
-                      className={`flex items-center gap-2 px-8 py-2.5 rounded-2xl text-white text-sm font-bold transition shadow-md hover:shadow-lg ${isSubmitting || !onboardingData.updates
-                          ? 'bg-stone-300 text-stone-500 cursor-not-allowed shadow-none'
-                          : 'bg-[#1FA463] hover:bg-[#178a52] shadow-[#1FA463]/15'
-                        }`}
-                    >
-                      {isSubmitting ? 'Submitting...' : 'Submit Answers'}
-                    </button>
-                  )}
-
-                </div>
-
-              </div>
-            )}
-
-          </div>
-        </div>
-      )}
     </div>
   );
 };
