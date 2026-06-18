@@ -6,13 +6,6 @@ import {
   Upload,
   AlertCircle,
   ShieldCheck,
-  LayoutDashboard,
-  User,
-  CreditCard,
-  HelpCircle,
-  LifeBuoy,
-  MessageSquare,
-  LogOut,
   Clipboard,
   Undo,
   Redo,
@@ -22,108 +15,26 @@ import {
   Underline,
   Link,
   MoreVertical,
-  ChevronLeft,
-  ChevronRight,
   Check,
   Plus,
   Minus,
   Sparkles,
   ArrowRight,
-  ArrowLeft,
-  X,
   CheckCircle,
-  Lock
+  Lock,
+  CreditCard,
+  User,
+  ChevronRight
 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Toggle from '../../components/ui/Toggle';
 import Footer from '../../components/Footer';
+import Sidebar from '../../components/Sidebar';
 import { useToast } from '../../components/ToastProvider';
+import safeLocalStorage from '../../utils/safeLocalStorage';
+import { analyzeText, buildHighlightedSegments } from '../../utils/analyzeText';
 
-const safeLocalStorage = {
-  getItem: (key) => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        return window.localStorage.getItem(key);
-      }
-    } catch (e) { /* SSR or restricted environment */ }
-    return null;
-  },
-  setItem: (key, value) => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.setItem(key, value);
-      }
-    } catch (e) { /* SSR or restricted environment */ }
-  },
-  removeItem: (key) => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.removeItem(key);
-      }
-    } catch (e) { /* SSR or restricted environment */ }
-  }
-};
-
-// ─── Simulated Analysis Engine ────────────────────────────────────────────────
-// Produces realistic, text-dependent scores without a backend
-function analyzeText(text) {
-  const words = text.trim().split(/\s+/);
-  const wordCount = words.length;
-  const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0);
-
-  // Avg words per sentence (AI tends to be consistent: ~18-22)
-  const avgWordsPerSentence = wordCount / Math.max(sentences.length, 1);
-
-  // Vocabulary richness: unique / total words
-  const uniqueWords = new Set(words.map((w) => w.toLowerCase().replace(/\W/g, '')));
-  const lexicalDiversity = uniqueWords.size / Math.max(wordCount, 1);
-
-  // Repetition score: how many words repeat >3 times
-  const freq = {};
-  words.forEach((w) => {
-    const wl = w.toLowerCase().replace(/\W/g, '');
-    freq[wl] = (freq[wl] || 0) + 1;
-  });
-  const repeatedWords = Object.values(freq).filter((c) => c > 3).length;
-  const repetitionRatio = repeatedWords / Math.max(uniqueWords.size, 1);
-
-  // AI probability signal: uniform sentence length + low lexical diversity + repetition
-  let aiSignal = 0;
-  if (avgWordsPerSentence > 16 && avgWordsPerSentence < 24) aiSignal += 0.25;
-  if (lexicalDiversity < 0.55) aiSignal += 0.30;
-  if (repetitionRatio > 0.05) aiSignal += 0.20;
-  if (wordCount < 30) aiSignal += 0.10; // Short texts are less conclusive
-
-  // Clamp aiSignal 0–0.80  (never 100% AI — always some uncertainty)
-  aiSignal = Math.min(aiSignal + Math.random() * 0.08, 0.80);
-
-  const aiPct = Math.round(aiSignal * 100);
-  const humanPct = Math.round((1 - aiSignal) * 0.88 * 100); // small gap for "humanized AI"
-  const humanizedPct = 100 - aiPct - humanPct;
-  const authenticity = humanPct;
-
-  // Misinformation: random-ish but seeded by text length + content
-  const misinfoKeywords = ['fake', 'false', 'hoax', 'conspiracy', 'rumor', 'unverified', 'claim'];
-  const misinfoHits = misinfoKeywords.filter((kw) =>
-    text.toLowerCase().includes(kw)
-  ).length;
-  const misinfoRisk = misinfoHits > 1 ? 'High' : misinfoHits === 1 ? 'Medium' : 'Low';
-
-  return { aiPct, humanPct, humanizedPct, authenticity, misinfoRisk };
-}
-
-// ─── Highlight words in the user's text ───────────────────────────────────────
-function buildHighlightedSegments(text, aiPct) {
-  const sentences = text.split(/(?<=[.!?])\s+/);
-  return sentences.map((sentence, i) => {
-    const hash = sentence.length + i;
-    if (aiPct > 50 && hash % 4 === 0) return { text: sentence, color: 'decoration-red-400 bg-red-50 text-red-800' };
-    if (hash % 3 === 0) return { text: sentence, color: 'decoration-[#1FA463]/40 bg-green-50 text-green-800' };
-    if (hash % 5 === 0) return { text: sentence, color: 'decoration-amber-400 bg-amber-50 text-amber-800' };
-    if (aiPct > 35 && hash % 7 === 0) return { text: sentence, color: 'decoration-orange-400 bg-orange-50/70 text-orange-800' };
-    return { text: sentence, color: null };
-  });
-}
+// ─── Analysis engine and localStorage are now imported from shared utils ──────
 
 const Detector = () => {
   const router = useRouter();
@@ -134,12 +45,15 @@ const Detector = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [wordCount, setWordCount] = useState(0);
   const [isEmpty, setIsEmpty] = useState(true);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [openFaqIndices, setOpenFaqIndices] = useState([]);
   const { showToast } = useToast();
 
   // App features state
-  const [subscriptionPlan, setSubscriptionPlan] = useState('Free');
+  const [subscriptionPlan, setSubscriptionPlan] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return safeLocalStorage.getItem('veritas_subscription_plan') || 'Free';
+    }
+    return 'Free';
+  });
   const [showResults, setShowResults] = useState(false);
   const [resultsData, setResultsData] = useState(null);
   const [segments, setSegments] = useState([]);
@@ -163,14 +77,20 @@ const Detector = () => {
     router.push(`/payment?planName=${encodeURIComponent(planName + ' Plan')}&planPrice=${encodeURIComponent(price)}`);
   };
 
-  // Auto-collapse sidebar on screen sizes below 1024px for responsiveness
+  // Read subscription plan and user profile from localStorage on mount
   useEffect(() => {
-    const handleResize = () => {
-      setIsSidebarCollapsed(window.innerWidth < 1024);
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const savedPlan = safeLocalStorage.getItem('veritas_subscription_plan');
+    if (savedPlan) {
+      setSubscriptionPlan(savedPlan);
+    }
+    const savedName = safeLocalStorage.getItem('veritas_display_name');
+    if (savedName) {
+      setDisplayName(savedName);
+    }
+    const savedEmail = safeLocalStorage.getItem('veritas_email');
+    if (savedEmail) {
+      setEmailAddress(savedEmail);
+    }
   }, []);
 
   // Onboarding survey states
@@ -222,35 +142,6 @@ const Detector = () => {
   };
 
   const MAX_WORDS = 5000;
-
-  const faqs = [
-    {
-      question: "What is VeritasAI?",
-      answer: "VeritasAI is a leading AI content and misinformation detector designed to analyze text and determine if it was authored by humans or generated by artificial intelligence tools like ChatGPT, GPT-4, Claude, or Gemini."
-    },
-    {
-      question: "How does AI detection work?",
-      answer: "VeritasAI uses machine learning models trained on millions of pages of human-written and AI-generated text. It analyzes linguistic patterns, perplexity (sentence structure predictability), and burstiness (variation in sentence lengths) to determine authenticity."
-    },
-    {
-      question: "Is VeritasAI's AI detector accurate?",
-      answer: "Yes, VeritasAI operates at a 90% accuracy rate, minimizing false positives while reliably flagging AI-generated text."
-    },
-    {
-      question: "Who is VeritasAI for?",
-      answer: "It is built for educators verifying student submissions, publishers and editors maintaining content integrity, content creators, and businesses checking copy authenticity."
-    },
-    {
-      question: "Does VeritasAI store my submitted text?",
-      answer: "No. Privacy is our core priority. All submitted text is analyzed in real-time, and we never store or share your content."
-    }
-  ];
-
-  const toggleFaq = (index) => {
-    setOpenFaqIndices((prev) =>
-      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
-    );
-  };
 
   const smoothScrollTo = (targetElement, duration = 800) => {
     if (!targetElement) return;
@@ -380,208 +271,16 @@ const Detector = () => {
   return (
     <div className="min-h-screen bg-[#FDFBF7] flex font-sans text-stone-800">
 
-      {/* Left Sidebar */}
-      <aside className={`bg-[#FDFBF7] border-r border-stone-200/60 flex flex-col justify-between shrink-0 h-screen sticky top-0 z-30 transition-all duration-300 ease-in-out relative ${isSidebarCollapsed ? 'w-16' : 'w-64'
-        }`}>
-
-        {/* Toggle Collapse Button */}
-        <button
-          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          className="absolute top-[88px] right-0 translate-x-1/2 w-6 h-6 bg-white border border-stone-200 rounded-full flex items-center justify-center hover:bg-stone-50 hover:border-stone-300 shadow-sm transition z-50 group cursor-pointer"
-          title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-        >
-          {isSidebarCollapsed ? (
-            <ChevronRight size={13} className="text-stone-500 group-hover:text-stone-800 transition" />
-          ) : (
-            <ChevronLeft size={13} className="text-stone-500 group-hover:text-stone-800 transition" />
-          )}
-        </button>
-
-        <div className={`flex flex-col gap-6 py-6 transition-all duration-300 ${isSidebarCollapsed ? 'px-3 items-center' : 'px-6'}`}>
-          {/* Logo / Brand */}
-          <div
-            onClick={() => router.push('/')}
-            className={`flex items-center gap-3 w-full cursor-pointer hover:opacity-80 transition-all ${isSidebarCollapsed ? 'justify-center' : ''}`}
-            title="Go to Homepage"
-          >
-            <div className="bg-gradient-to-br from-[#7755FF] to-[#4F33FF] p-[6px] rounded-lg shadow-lg shrink-0">
-              <ShieldCheck size={22} className="text-white" strokeWidth={2.5} />
-            </div>
-            {!isSidebarCollapsed && (
-              <span className="font-normal text-[22px] tracking-tight text-stone-900 transition-all duration-300 whitespace-nowrap overflow-hidden">
-                Veritas<span className="font-bold">AI</span>
-              </span>
-            )}
-          </div>
-
-          {/* Navigation Links */}
-          <nav className="flex flex-col gap-6 mt-4 w-full">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all w-full text-left ${activeTab === 'dashboard'
-                  ? 'bg-stone-900 text-white shadow-sm font-semibold'
-                  : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
-                } ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2.5'
-                }`}
-              title="Dashboard"
-            >
-              <LayoutDashboard size={18} className="shrink-0" />
-              {!isSidebarCollapsed && <span className="truncate">Dashboard</span>}
-            </button>
-
-            <button
-              onClick={() => setActiveTab('detector')}
-              className={`flex items-center gap-3 rounded-xl text-sm transition-all w-full text-left ${activeTab === 'detector'
-                  ? 'bg-stone-900 text-white shadow-sm font-semibold'
-                  : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
-                } ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2.5'
-                }`}
-              title="AI Content Detector"
-            >
-              <ShieldCheck size={18} className="shrink-0" />
-              {!isSidebarCollapsed && <span className="truncate">AI Detector</span>}
-            </button>
-
-            {/* Account Section */}
-            <div className="flex flex-col gap-2 w-full">
-              {!isSidebarCollapsed && (
-                <span className="text-xs font-bold text-stone-400/80 tracking-wider uppercase px-4 whitespace-nowrap">Account</span>
-              )}
-              <button
-                onClick={() => setActiveTab('account')}
-                className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all text-left w-full ${activeTab === 'account'
-                    ? 'bg-stone-900 text-white shadow-sm font-semibold'
-                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
-                  } ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
-                  }`}
-                title="Account"
-              >
-                <User size={18} className="shrink-0" />
-                {!isSidebarCollapsed && <span className="truncate">Account</span>}
-              </button>
-              <button
-                onClick={() => setActiveTab('plans')}
-                className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all text-left w-full ${activeTab === 'plans'
-                    ? 'bg-stone-900 text-white shadow-sm font-semibold'
-                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
-                  } ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
-                  }`}
-                title="Plans & Pricing"
-              >
-                <CreditCard size={18} className="shrink-0" />
-                {!isSidebarCollapsed && <span className="truncate">Plans & Pricing</span>}
-              </button>
-            </div>
-
-            {/* Help Section */}
-            <div className="flex flex-col gap-2 w-full">
-              {!isSidebarCollapsed && (
-                <span className="text-xs font-bold text-stone-400/80 tracking-wider uppercase px-4 whitespace-nowrap">Help</span>
-              )}
-              <button
-                onClick={() => setActiveTab('faq')}
-                className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all text-left w-full ${activeTab === 'faq'
-                    ? 'bg-stone-900 text-white shadow-sm font-semibold'
-                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
-                  } ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
-                  }`}
-                title="FAQ"
-              >
-                <HelpCircle size={18} className="shrink-0" />
-                {!isSidebarCollapsed && <span className="truncate">FAQ</span>}
-              </button>
-              <button
-                onClick={() => showToast('Support desk is currently under maintenance.', 'error')}
-                className={`flex items-center gap-3 text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 rounded-xl font-medium text-[15.5px] transition-all text-left w-full ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
-                  }`}
-                title="Support"
-              >
-                <LifeBuoy size={18} className="shrink-0" />
-                {!isSidebarCollapsed && <span className="truncate">Support</span>}
-              </button>
-              <button
-                onClick={() => window.open('https://discord.gg/YwGVj2V5Qk', '_blank')}
-                className={`flex items-center gap-3 text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 rounded-xl font-medium text-[15.5px] transition-all text-left w-full ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
-                  }`}
-                title="Discord"
-              >
-                <MessageSquare size={18} className="shrink-0" />
-                {!isSidebarCollapsed && <span className="truncate">Discord</span>}
-              </button>
-            </div>
-          </nav>
-        </div>
-
-        {/* Profile Card / Footer inside Sidebar */}
-        <div className={`p-4 border-t border-stone-200/60 flex flex-col gap-3 transition-all duration-300 ${isSidebarCollapsed ? 'items-center px-2' : ''}`}>
-
-          {isSidebarCollapsed ? (
-            /* Collapsed State: Just the avatar with green status dot */
-            <button
-              onClick={() => setActiveTab('account')}
-              className="relative cursor-pointer hover:scale-105 transition-all w-10 h-10 rounded-full bg-gradient-to-br from-[#7755FF] to-[#4F33FF] flex items-center justify-center text-white font-bold text-[15px] shadow-sm border-none outline-none shrink-0"
-              title={`${displayName} - ${subscriptionPlan} Plan (Click to settings)`}
-            >
-              {displayName.charAt(0)}
-              <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-[#22C55E] ring-2 ring-white"></span>
-            </button>
-          ) : (
-            /* Expanded State: Creamy Glass User Card (Warm Beige Sand Contrast) */
-            <div className="w-full bg-[#EBE5D8]/80 backdrop-blur-[10px] border border-stone-300/60 shadow-[inset_4px_4px_12px_rgba(255,255,255,0.75),inset_-2px_-2px_6px_rgba(0,0,0,0.015),0_10px_25px_rgba(28,25,23,0.02)] p-4 rounded-2xl flex flex-col gap-3.5 text-stone-800 select-none">
-
-              {/* Profile Details */}
-              <div
-                onClick={() => setActiveTab('account')}
-                className="flex items-center gap-3 cursor-pointer hover:opacity-90 transition text-left"
-              >
-                <div className="relative shrink-0">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7755FF] to-[#4F33FF] flex items-center justify-center text-white font-bold text-sm shadow-sm">
-                    {displayName.charAt(0)}
-                  </div>
-                  {/* Green status dot */}
-                  <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-[#22C55E] ring-2 ring-[#EDE7DC]"></span>
-                </div>
-
-                <div className="flex flex-col min-w-0">
-                  <span className="font-extrabold text-[14px] tracking-tight truncate text-stone-900 leading-none mb-0.5">{displayName}</span>
-                  <span className="text-stone-500 text-[11px] font-semibold truncate leading-none">@{displayName.toLowerCase().replace(/\s+/g, '_')}</span>
-                </div>
-              </div>
-              {/* Action Buttons inside Card */}
-              <div className="flex flex-col gap-2">
-                {/* Upgrade Button */}
-                <button
-                  onClick={() => handleSubscribe('Monthly')}
-                  className="w-full py-1.5 pl-1.5 pr-4 bg-stone-950/5 hover:bg-stone-950/10 active:scale-98 border border-stone-900/5 rounded-full flex items-center gap-2.5 transition-all cursor-pointer text-left shadow-sm"
-                >
-                  <div className="w-6 h-6 rounded-full bg-slate-950 flex items-center justify-center shrink-0">
-                    <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
-                    </svg>
-                  </div>
-                  <span className="text-[11px] font-bold text-stone-800 tracking-wide">Upgrade Now</span>
-                </button>
-
-                {/* Logout Button inside the Card */}
-                <button
-                  onClick={() => {
-                    safeLocalStorage.removeItem('veritas_onboarding_completed');
-                    router.push('/login');
-                  }}
-                  className="w-full py-2 bg-red-50/70 hover:bg-red-100/90 active:scale-98 border border-red-100/80 rounded-full flex items-center justify-center gap-2 transition-all cursor-pointer text-red-600 text-[11px] font-bold shadow-sm"
-                >
-                  <LogOut size={13} className="shrink-0" />
-                  Logout
-                </button>
-              </div>
-
-            </div>
-          )}
-        </div>
-      </aside>
+      {/* Shared Sidebar Component */}
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        displayName={displayName}
+        subscriptionPlan={subscriptionPlan}
+      />
 
       {/* Main Content Pane - Automatically stretches dynamically when sidebar collapses */}
-      <main className="flex-1 p-4 sm:p-8 pt-10 sm:pt-16 max-w-[1240px] mx-auto w-full flex flex-col justify-start transition-all duration-300">
+      <main className="flex-1 p-4 sm:p-8 pt-14 md:pt-10 sm:pt-16 max-w-[1240px] mx-auto w-full flex flex-col justify-start transition-all duration-300">
         {activeTab === 'dashboard' && (
           <div className="flex flex-col gap-8 w-full max-w-[1000px] mx-auto text-left">
             {/* Header / Welcome Banner */}
@@ -1282,57 +981,6 @@ const Detector = () => {
                 </ul>
               </div>
 
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'faq' && (
-          /* FAQ Subview matching homepage */
-          <div className="w-full flex flex-col items-center">
-            {/* Header section matching cream style */}
-            <div className="max-w-2xl text-center mb-12 mt-4">
-              <h1 className="text-[36px] sm:text-[42px] font-black tracking-tight text-stone-900 mb-5 leading-[1.1]">
-                FAQs about VeritasAI
-              </h1>
-              <p className="text-stone-500 max-w-xl mx-auto text-[15px] font-medium leading-relaxed">
-                Everything you need to know about VeritasAI and our detection systems.
-              </p>
-            </div>
-
-            {/* Accordion container matching homepage cream styling */}
-            <div className="flex flex-col gap-4 w-full max-w-[850px]">
-              {faqs.map((faq, index) => {
-                const isOpen = openFaqIndices.includes(index);
-                return (
-                  <div
-                    key={index}
-                    className={`border bg-white rounded-2xl overflow-hidden transition-all duration-300 w-full ${isOpen
-                        ? 'border-[#1FA463]/35 shadow-[0_10px_30px_rgba(31,164,99,0.025)]'
-                        : 'border-stone-200/80 shadow-[0_4px_20px_rgba(28,25,23,0.015)]'
-                      } hover:border-[#1FA463] hover:shadow-[0_12px_40px_rgba(31,164,99,0.05)]`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleFaq(index)}
-                      className="w-full flex items-center justify-between p-6 text-left font-semibold text-base sm:text-lg text-stone-900 hover:text-[#1FA463] transition-colors select-none"
-                    >
-                      <span>{faq.question}</span>
-                      <span className="text-[#1FA463] shrink-0 ml-4 transition-transform duration-200">
-                        {isOpen ? <Minus size={20} strokeWidth={2.5} /> : <Plus size={20} strokeWidth={2.5} />}
-                      </span>
-                    </button>
-
-                    <div
-                      className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-[300px] border-t border-stone-100 opacity-100' : 'max-h-0 opacity-0'
-                        }`}
-                    >
-                      <p className="p-6 text-stone-600 text-sm leading-relaxed font-medium bg-[#FCFAF7]">
-                        {faq.answer}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
             </div>
           </div>
         )}

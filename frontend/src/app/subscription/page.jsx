@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import Layout from '../../components/Layout';
+import PublicLayout from '../../components/PublicLayout';
 import PlanCard from '../../components/ui/PlanCard';
 
 const Subscription = () => {
@@ -13,7 +13,7 @@ const Subscription = () => {
   };
 
   return (
-    <Layout>
+    <PublicLayout>
       <div className="max-w-6xl mx-auto text-center mb-16 pt-6">
         <h1 className="text-[42px] font-black tracking-tight text-[#0f172a] mb-6 leading-[1.1] max-w-[440px] mx-auto">
           Choose Your Subscription<br />Plan
@@ -69,7 +69,7 @@ const Subscription = () => {
           onSubscribe={() => handleSubscribe({ name: 'Yearly Plan', price: '$250' })}
         />
       </div>
-    </Layout>
+    </PublicLayout>
   );
 };
 
