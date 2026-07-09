@@ -168,6 +168,12 @@ export default function Home() {
   const [expandedFaq, setExpandedFaq] = useState(null);
   const faqRef = useRef(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const savedName = safeLocalStorage.getItem('veritas_display_name');
+    setIsLoggedIn(!!savedName);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -215,6 +221,15 @@ export default function Home() {
     }
   ];
 
+  const handleLogout = () => {
+    safeLocalStorage.removeItem('veritas_onboarding_completed');
+    safeLocalStorage.removeItem('veritas_subscription_plan');
+    safeLocalStorage.removeItem('veritas_display_name');
+    safeLocalStorage.removeItem('veritas_email');
+    setIsLoggedIn(false);
+    router.push('/login');
+  };
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#1C1917] relative overflow-hidden flex flex-col font-sans">
       <div className="absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[350px] bg-gradient-to-r from-transparent via-[#7B82FF]/10 to-transparent blur-[120px] pointer-events-none z-0"></div>
@@ -245,12 +260,25 @@ export default function Home() {
         </div>
         
         <div className="flex items-center gap-8">
-          <button onClick={() => router.push('/login')} className="hidden md:flex text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide cursor-pointer">
-            Login
-          </button>
-          <button onClick={() => router.push('/dashboard')} className="hidden md:flex bg-[#7B82FF] hover:bg-[#6870fa] text-white text-[15px] font-bold py-2.5 px-6 rounded-full transition-all cursor-pointer">
-            Dashboard
-          </button>
+          {!isLoggedIn ? (
+            <>
+              <button onClick={() => router.push('/login')} className="hidden md:flex text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide cursor-pointer border-none bg-transparent">
+                Login
+              </button>
+              <button onClick={() => router.push('/login')} className="hidden md:flex bg-[#7B82FF] hover:bg-[#6870fa] text-white text-[15px] font-bold py-2.5 px-6 rounded-full transition-all cursor-pointer border-none">
+                Login
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={handleLogout} className="hidden md:flex text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide cursor-pointer border-none bg-transparent">
+                Logout
+              </button>
+              <button onClick={() => router.push('/dashboard')} className="hidden md:flex bg-[#7B82FF] hover:bg-[#6870fa] text-white text-[15px] font-bold py-2.5 px-6 rounded-full transition-all cursor-pointer border-none">
+                Dashboard
+              </button>
+            </>
+          )}
 
           {/* Mobile Menu Toggle */}
           <button 
@@ -274,12 +302,25 @@ export default function Home() {
             <button onClick={() => { faqRef.current?.scrollIntoView({ behavior: 'smooth' }); setMobileMenuOpen(false); }} className="text-left text-[16px] font-bold text-stone-800 bg-transparent border-0">FAQ</button>
           </nav>
           <div className="flex flex-col gap-3 pt-4 border-t border-stone-100">
-            <button onClick={() => { router.push('/login'); setMobileMenuOpen(false); }} className="w-full py-3 text-center text-[15px] font-bold text-stone-700 bg-stone-100 rounded-xl border-0">
-              Login
-            </button>
-            <button onClick={() => { router.push('/dashboard'); setMobileMenuOpen(false); }} className="w-full py-3 text-center text-[15px] font-bold text-white bg-[#7B82FF] rounded-xl border-0">
-              Dashboard
-            </button>
+            {!isLoggedIn ? (
+              <>
+                <button onClick={() => { router.push('/login'); setMobileMenuOpen(false); }} className="w-full py-3 text-center text-[15px] font-bold text-stone-700 bg-stone-100 rounded-xl border-0">
+                  Login
+                </button>
+                <button onClick={() => { router.push('/login'); setMobileMenuOpen(false); }} className="w-full py-3 text-center text-[15px] font-bold text-white bg-[#7B82FF] rounded-xl border-0">
+                  Login
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => { handleLogout(); setMobileMenuOpen(false); }} className="w-full py-3 text-center text-[15px] font-bold text-stone-700 bg-stone-100 rounded-xl border-0">
+                  Logout
+                </button>
+                <button onClick={() => { router.push('/dashboard'); setMobileMenuOpen(false); }} className="w-full py-3 text-center text-[15px] font-bold text-white bg-[#7B82FF] rounded-xl border-0">
+                  Dashboard
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

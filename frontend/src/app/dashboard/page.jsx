@@ -24,7 +24,12 @@ import {
   Lock,
   CreditCard,
   User,
-  ChevronRight
+  ChevronRight,
+  Clock,
+  Trash2,
+  FileText,
+  X,
+  TrendingUp
 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Toggle from '../../components/ui/Toggle';
@@ -60,11 +65,79 @@ const Detector = () => {
 
   // Account subview states
   const [accountSubTab, setAccountSubTab] = useState('general');
-  const [displayName, setDisplayName] = useState('Sulav Sharma');
+  const [displayName, setDisplayName] = useState('');
   const [emailAddress, setEmailAddress] = useState('sulav2080-0306@iimscollege.edu.np');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [scans, setScans] = useState([
+    {
+      id: "scan-1",
+      filename: "assignment_final.txt",
+      score: 16,
+      time: "2 hours ago",
+      text: "Climate change is one of the most critical challenges facing our world today. Rising global temperatures, driven primarily by human emissions of greenhouse gases, are causing glaciers to melt and sea levels to rise. Urgent collective action is required to transition to renewable energy sources, decrease carbon emissions, and preserve biodiversity for future generations."
+    },
+    {
+      id: "scan-2",
+      filename: "blog_post_draft.txt",
+      score: 2,
+      time: "1 day ago",
+      text: "Welcome back to my blog! Today I want to share my simple morning routine that has completely changed my productivity. I start at 6 AM with a glass of warm water, followed by a quick 10-minute stretch. Then I write down three things I am grateful for before opening my laptop. It makes a significant difference in how focused and energized I feel throughout the day."
+    },
+    {
+      id: "scan-3",
+      filename: "research_abstract.txt",
+      score: 88,
+      time: "2 days ago",
+      text: "This study presents a novel deep learning framework designed to optimize real-time image recognition tasks in low-bandwidth edge computing environments. By utilizing dynamic pruning algorithms and low-rank tensor decompositions, the proposed method achieves a 45% reduction in computational complexity while maintaining 98.6% classification accuracy on benchmark datasets. Furthermore, empirical evaluations demonstrate significant energy efficiency gains."
+    },
+    {
+      id: "scan-4",
+      filename: "ai_experiment.txt",
+      score: 95,
+      time: "3 days ago",
+      text: "The rapid advancements in artificial intelligence have led to the development of sophisticated large language models capable of generating highly coherent, human-like text across various domains. These models leverage transformer architectures trained on vast corpora of textual data to predict subsequent tokens and generate responses. While these technologies offer substantial potential for creative assistance and automation, they also introduce significant challenges regarding authenticity verification and detection."
+    }
+  ]);
+
+  const handleLoadScan = (scan) => {
+    setActiveTab('detector');
+    
+    setTimeout(() => {
+      if (editorRef.current) {
+        editorRef.current.innerText = scan.text;
+      }
+      setIsEmpty(false);
+      
+      const words = scan.text.trim().split(/\s+/).length;
+      setWordCount(words);
+      
+      setIsAnalyzing(true);
+      setShowResults(true);
+      setError('');
+      
+      setTimeout(() => {
+        const analysis = analyzeText(scan.text);
+        analysis.aiPct = scan.score;
+        analysis.humanPct = 100 - scan.score;
+        analysis.authenticity = 100 - scan.score;
+        
+        setResultsData(analysis);
+        setSegments(buildHighlightedSegments(scan.text, scan.score));
+        setIsAnalyzing(false);
+        showToast(`Loaded results for ${scan.filename}`, 'success');
+        
+        setTimeout(() => {
+          smoothScrollTo(resultsRef.current, 700);
+        }, 100);
+      }, 800);
+    }, 50);
+    
+    setIsHistoryOpen(false);
+  };
 
   const fileInputRef = useRef(null);
   const editorRef = useRef(null);
@@ -99,9 +172,18 @@ const Detector = () => {
 
   useEffect(() => {
     setIsMounted(true);
+
+    // Auth guard: if no logged-in user, redirect to login
+    const savedName = safeLocalStorage.getItem('veritas_display_name');
+    if (!savedName) {
+      router.push('/login');
+      return;
+    }
+
     const completed = safeLocalStorage.getItem('veritas_onboarding_completed');
     if (!completed) {
       router.push('/survey');
+      return;
     } else if (completed !== 'skipped') {
       try {
         setSurveyData(JSON.parse(completed));
@@ -269,7 +351,7 @@ const Detector = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] flex font-sans text-stone-800">
+    <div className="min-h-screen bg-[#FDFBF7] flex font-sans text-stone-800 overflow-x-hidden relative">
 
       {/* Shared Sidebar Component */}
       <Sidebar
@@ -280,169 +362,161 @@ const Detector = () => {
       />
 
       {/* Main Content Pane - Automatically stretches dynamically when sidebar collapses */}
-      <main className="flex-1 p-4 sm:p-8 pt-14 md:pt-10 sm:pt-16 max-w-[1240px] mx-auto w-full flex flex-col justify-start transition-all duration-300">
+      <main className={`flex-1 p-4 sm:p-8 pt-14 md:pt-10 sm:pt-16 max-w-[1240px] mx-auto w-full flex flex-col justify-start transition-all duration-300 ${
+        isHistoryOpen ? 'lg:pr-[320px]' : ''
+      }`}>
         {activeTab === 'dashboard' && (
-          <div className="flex flex-col gap-8 w-full max-w-[1000px] mx-auto text-left">
-            {/* Header / Welcome Banner */}
-            <div className="bg-gradient-to-br from-[#7755FF] to-[#4F33FF] rounded-[32px] p-8 md:p-10 text-white relative overflow-hidden shadow-lg">
-              {/* Background patterns */}
-              <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
-              <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div className="flex flex-col gap-2">
-                  <div className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider w-fit">
-                    <Sparkles size={12} />
-                    Personalized Workspace
-                  </div>
-                  <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-                    Welcome back, {displayName}!
+          <div className="flex flex-col gap-0 w-full max-w-[1000px] mx-auto text-left h-[calc(100vh-6rem)]">
+            
+            {/* Pastel Greeting Banner */}
+            <div className="bg-[#EEEDFC] rounded-[28px] px-8 py-8 md:px-10 md:py-10 text-stone-800 relative overflow-hidden border border-stone-200/30 flex-[3]">
+              <div className="relative z-10 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-5 h-full">
+                <div className="flex flex-col justify-center gap-3 max-w-lg text-left">
+                  <h1 className="text-[28px] md:text-[36px] font-extrabold tracking-tight text-stone-900 leading-tight">
+                    Hi, {displayName}
                   </h1>
-                  <p className="text-white/80 font-medium text-sm md:text-base max-w-xl leading-relaxed">
-                    VeritasAI is optimized and ready. Analyze text, evaluate burstiness, and detect AI signatures in seconds.
+                  <p className="text-stone-500 font-medium text-[14px] leading-relaxed">
+                    Ready to scan and verify your content today?
                   </p>
+                  <div className="mt-1">
+                    <button
+                      onClick={() => setActiveTab('detector')}
+                      className="px-6 py-3 bg-[#1FA463] hover:bg-[#178a52] text-white font-bold rounded-2xl hover:scale-[1.02] active:scale-98 transition shadow-md shadow-[#1FA463]/15 flex items-center gap-2 cursor-pointer whitespace-nowrap text-[14px] border-none outline-none"
+                    >
+                      Start New Scan
+                      <ArrowRight size={16} />
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => setActiveTab('detector')}
-                  className="px-6 py-3 bg-white text-stone-900 font-bold rounded-2xl hover:bg-stone-50 hover:scale-[1.02] active:scale-98 transition shadow-md flex items-center gap-2 cursor-pointer whitespace-nowrap text-[14px]"
-                >
-                  Start New Scan
-                  <ArrowRight size={16} />
-                </button>
+                {/* SVG Illustration */}
+                <div className="hidden md:flex shrink-0 items-center justify-center w-48 h-36">
+                  <svg className="w-full h-full" viewBox="0 0 200 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="100" cy="75" r="55" fill="#E0DDF9" />
+                    <rect x="30" y="115" width="140" height="6" rx="3" fill="#D1D5DB" />
+                    <path d="M110 115H170L174 109H106L110 115Z" fill="#9CA3AF" />
+                    <path d="M110 109L114 75H166L170 109H110Z" fill="#374151" />
+                    <rect x="117" y="78" width="46" height="27" rx="1.5" fill="#4B5563" />
+                    <rect x="122" y="82" width="36" height="19" rx="1" fill="#EEF2F6" />
+                    <circle cx="140" cy="91" r="5" fill="#7755FF" />
+                    <rect x="126" y="86" width="3" height="8" rx="0.5" fill="#1FA463" />
+                    <rect x="131" y="88" width="3" height="6" rx="0.5" fill="#F36C3D" />
+                    <path d="M50 115C50 90 70 85 85 85C100 85 105 92 105 115H50Z" fill="#7755FF" />
+                    <rect x="71" y="73" width="8" height="15" rx="2" fill="#FDE047" />
+                    <circle cx="75" cy="65" r="13" fill="#FDE047" />
+                    <path d="M60 62C60 50 72 48 78 48C88 48 90 54 90 64C90 66 87 60 82 58C77 56 68 59 64 63C62 64 60 65 60 62Z" fill="#1F2937" />
+                    <path d="M80 98C92 98 108 108 116 109L114 113C104 112 90 102 80 102V98Z" fill="#FDE047" />
+                    <rect x="94" y="103" width="8" height="12" rx="1.5" fill="#EF4444" />
+                    <path d="M102 106C104 106 105 108 105 109C105 110 104 112 102 112" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round" />
+                    <path d="M96 98C96 99.5 95 100 95 101" stroke="#D1D5DB" strokeWidth="1" strokeLinecap="round" />
+                    <path d="M98 97C98 98.5 97 99 97 100" stroke="#D1D5DB" strokeWidth="1" strokeLinecap="round" />
+                  </svg>
+                </div>
               </div>
             </div>
 
-            {/* Core Stats Overview */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              <div className="bg-white border border-stone-200/50 rounded-3xl p-6 shadow-[0_15px_40px_rgba(28,25,23,0.015)] flex flex-col gap-2 hover:-translate-y-0.5 transition duration-300">
-                <span className="text-[11px] font-bold text-stone-400 uppercase tracking-widest">Total Scans Run</span>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-black text-stone-900 tracking-tight">3</span>
-                  <span className="text-stone-400 text-xs font-semibold">scans</span>
+            {/* Overview Section */}
+            <div className="flex flex-col gap-3 pt-6 flex-[2]">
+              <h2 className="text-[11px] font-bold text-stone-400 uppercase tracking-widest text-left">Overview</h2>
+              
+              {/* Unified color overview cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1">
+                
+                {/* Total Scans Run */}
+                <div className="bg-[#EEEDFC] border border-[#E0DDF9] rounded-[20px] px-6 py-6 flex items-center gap-4 transition-all duration-300 hover:-translate-y-0.5">
+                  <div className="w-12 h-12 rounded-full bg-white/80 flex items-center justify-center shrink-0">
+                    <TrendingUp size={20} className="text-[#7755FF]" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider leading-none mb-2">Total Scans</span>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-3xl font-black text-stone-900 tracking-tight leading-none">{scans.length}</span>
+                      <span className="text-stone-400 text-xs font-semibold leading-none">scans</span>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-[11px] font-semibold text-[#1FA463] mt-1 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#1FA463]"></span>
-                  All systems operating normally
-                </p>
-              </div>
-              <div className="bg-white border border-stone-200/50 rounded-3xl p-6 shadow-[0_15px_40px_rgba(28,25,23,0.015)] flex flex-col gap-2 hover:-translate-y-0.5 transition duration-300">
-                <span className="text-[11px] font-bold text-stone-400 uppercase tracking-widest">Average AI Score</span>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-black text-stone-900 tracking-tight">24.2%</span>
-                  <span className="text-stone-400 text-xs font-semibold">AI signature</span>
+
+                {/* Average AI Score */}
+                <div className="bg-[#EEEDFC] border border-[#E0DDF9] rounded-[20px] px-6 py-6 flex items-center gap-4 transition-all duration-300 hover:-translate-y-0.5">
+                  <div className="w-12 h-12 rounded-full bg-white/80 flex items-center justify-center shrink-0">
+                    <ShieldCheck size={20} className="text-[#7755FF]" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider leading-none mb-2">Avg. AI Score</span>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-3xl font-black text-stone-900 tracking-tight leading-none">24.2%</span>
+                      <span className="text-stone-400 text-xs font-semibold leading-none">AI avg</span>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-[11px] font-semibold text-stone-400 mt-1">
-                  Based on recent scan history
-                </p>
-              </div>
-              <div className="bg-white border border-stone-200/50 rounded-3xl p-6 shadow-[0_15px_40px_rgba(28,25,23,0.015)] flex flex-col gap-2 hover:-translate-y-0.5 transition duration-300">
-                <span className="text-[11px] font-bold text-stone-400 uppercase tracking-widest">Current Plan</span>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-lg font-black text-stone-800 tracking-tight">{subscriptionPlan} Plan</span>
+
+                {/* Current Plan */}
+                <div className="bg-[#EEEDFC] border border-[#E0DDF9] rounded-[20px] px-6 py-6 flex items-center justify-between transition-all duration-300 hover:-translate-y-0.5">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-white/80 flex items-center justify-center shrink-0">
+                      <Sparkles size={20} className="text-[#7755FF]" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider leading-none mb-2">Current Plan</span>
+                      <span className="text-xl font-black text-stone-900 tracking-tight leading-none">{subscriptionPlan}</span>
+                    </div>
+                  </div>
                   <button
                     onClick={() => setActiveTab('plans')}
-                    className="text-xs font-bold text-[#7755FF] hover:underline"
+                    className="px-4 py-2 bg-white/80 hover:bg-white text-stone-800 text-xs font-bold rounded-xl transition border border-[#E0DDF9] shrink-0 cursor-pointer outline-none"
                   >
                     Upgrade
                   </button>
                 </div>
-                <p className="text-[11px] font-semibold text-stone-400 mt-1">
-                  5,000 words limit per scan
-                </p>
+
               </div>
             </div>
 
-            {/* User Profile Insights & Recent Scans */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-
-              {/* Onboarding Survey profile summary */}
-              <div className="bg-white border border-stone-200/50 rounded-[32px] p-6 md:p-8 shadow-[0_15px_40px_rgba(28,25,23,0.015)] flex flex-col gap-6">
+            {/* Recent Activity - Flat, No Box */}
+            <div className="flex flex-col gap-4 w-full text-left pt-6 flex-[3]">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-bold text-stone-900 mb-1">Your Onboarding Profile</h3>
-                  <p className="text-stone-400 text-xs font-medium">Customized based on your onboarding answers.</p>
+                  <h3 className="text-[16px] font-bold text-stone-900">Recent Activity</h3>
+                  <p className="text-stone-400 text-[12px] font-medium">Your most recent scans.</p>
                 </div>
-
-                {surveyData ? (
-                  <div className="flex flex-col gap-4">
-                    <div className="flex justify-between items-center py-2.5 border-b border-stone-100">
-                      <span className="text-xs font-bold text-stone-400 uppercase tracking-wider">Primary Role</span>
-                      <span className="text-sm font-semibold text-stone-800 bg-[#7B82FF]/10 text-[#7B82FF] px-3 py-1 rounded-full">{surveyData.role || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2.5 border-b border-stone-100">
-                      <span className="text-xs font-bold text-stone-400 uppercase tracking-wider">Experience Level</span>
-                      <span className="text-[13px] font-semibold text-stone-800">{surveyData.experience || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2.5 border-b border-stone-100">
-                      <span className="text-xs font-bold text-stone-400 uppercase tracking-wider">Usage Frequency</span>
-                      <span className="text-[13px] font-semibold text-stone-800">{surveyData.frequency || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2.5 border-b border-stone-100">
-                      <span className="text-xs font-bold text-stone-400 uppercase tracking-wider">AI Detector Familiarity</span>
-                      <span className="text-[13px] font-semibold text-stone-800">{surveyData.detectorUsed || 'N/A'}</span>
-                    </div>
-                    {surveyData.helpText && (
-                      <div className="flex flex-col gap-2 pt-2 text-left">
-                        <span className="text-xs font-bold text-stone-400 uppercase tracking-wider">Specific Assistance Request</span>
-                        <div className="text-xs font-medium text-stone-600 bg-stone-50 rounded-2xl p-4 border border-stone-200/40 italic">
-                          "{surveyData.helpText}"
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="py-8 flex flex-col items-center justify-center text-center gap-2">
-                    <div className="w-10 h-10 bg-stone-100 text-stone-400 rounded-full flex items-center justify-center">
-                      <ShieldCheck size={20} />
-                    </div>
-                    <span className="text-stone-400 text-xs font-bold uppercase tracking-wider">No Profile Data</span>
-                    <p className="text-stone-400 text-xs max-w-[200px]">You skipped onboarding or completed it elsewhere.</p>
-                  </div>
-                )}
+                
+                <button
+                  onClick={() => setIsHistoryOpen(true)}
+                  className="px-4 py-2 bg-stone-100 hover:bg-stone-200/80 text-stone-600 font-bold rounded-xl text-[12px] transition cursor-pointer flex items-center gap-2 outline-none border-none"
+                >
+                  <Clock size={14} />
+                  View All History
+                </button>
               </div>
 
-              {/* Recent Scan History */}
-              <div className="bg-white border border-stone-200/50 rounded-[32px] p-6 md:p-8 shadow-[0_15px_40px_rgba(28,25,23,0.015)] flex flex-col gap-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-bold text-stone-900 mb-1">Recent Activity</h3>
-                    <p className="text-stone-400 text-xs font-medium">Your most recent scans.</p>
-                  </div>
-                  <button
-                    onClick={() => setActiveTab('detector')}
-                    className="text-xs font-bold text-[#7755FF] hover:underline"
+              <div className="flex flex-col flex-1 justify-evenly">
+                {scans.slice(0, 3).map((scan, idx) => (
+                  <div 
+                    key={scan.id} 
+                    onClick={() => handleLoadScan(scan)}
+                    className={`flex items-center justify-between py-4 px-3 hover:bg-stone-50 rounded-xl transition duration-200 cursor-pointer ${
+                      idx < Math.min(scans.length, 3) - 1 ? 'border-b border-stone-100' : ''
+                    }`}
                   >
-                    View All
-                  </button>
-                </div>
-
-                <div className="flex flex-col gap-4">
-                  {[
-                    { filename: "assignment_final.txt", score: 16, time: "2 hours ago" },
-                    { filename: "blog_post_draft.txt", score: 2, time: "1 day ago" },
-                    { filename: "research_abstract.txt", score: 88, time: "2 days ago" },
-                  ].map((scan, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3.5 bg-stone-50/50 border border-stone-100 rounded-2xl">
-                      <div className="flex items-center gap-3 text-left">
-                        <div className="p-2 bg-white border border-stone-200/60 rounded-xl">
-                          <CheckCircle size={16} className={scan.score > 50 ? "text-amber-500" : "text-[#1FA463]"} />
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-[13px] font-bold text-stone-800">{scan.filename}</span>
-                          <span className="text-[11px] font-semibold text-stone-400">{scan.time}</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className={`text-[11px] font-extrabold px-2.5 py-1 rounded-full ${scan.score > 50
-                            ? 'bg-amber-50 text-amber-600 border border-amber-100'
-                            : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                          }`}>
-                          {scan.score}% AI
-                        </span>
+                    <div className="flex items-center gap-4 text-left">
+                      <FileText size={20} className={scan.score > 50 ? "text-amber-500" : "text-[#1FA463]"} />
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[14px] font-bold text-stone-800 truncate">{scan.filename}</span>
+                        <span className="text-[11px] font-semibold text-stone-400 mt-0.5">{scan.time}</span>
                       </div>
                     </div>
-                  ))}
-                </div>
+                    
+                    <span className={`text-[11px] font-extrabold px-3 py-1 rounded-full shrink-0 ${
+                      scan.score > 50
+                        ? 'bg-amber-50 text-amber-600'
+                        : 'bg-emerald-50 text-emerald-600'
+                    }`}>
+                      {scan.score}% AI
+                    </span>
+                  </div>
+                ))}
               </div>
-
             </div>
+            
           </div>
         )}
         {activeTab === 'detector' && (
@@ -1188,6 +1262,83 @@ const Detector = () => {
         )}
         {activeTab !== 'account' && <Footer className="!mt-16 md:!mt-24" />}
       </main>
+
+      {/* ChatGPT / Claude style sliding Right History Sidebar Drawer */}
+      <div
+        className={`fixed top-0 right-0 h-screen w-[320px] bg-[#FDFBF7] border-l border-stone-200/80 shadow-2xl z-[60] flex flex-col justify-between transition-transform duration-300 ease-in-out ${
+          isHistoryOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        <div className="flex flex-col h-full">
+          {/* Drawer Header */}
+          <div className="p-5 border-b border-stone-200/60 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <Clock size={18} className="text-stone-500" />
+              <h3 className="font-extrabold text-[16px] text-stone-900 tracking-tight">Scan History</h3>
+            </div>
+            <button
+              onClick={() => setIsHistoryOpen(false)}
+              className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer border-none outline-none"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Drawer Scrollable List */}
+          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+            {scans.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center p-6 text-stone-400 mt-20">
+                <FileText size={32} className="opacity-40 mb-3" />
+                <span className="text-xs font-bold uppercase tracking-wider">No history found</span>
+              </div>
+            ) : (
+              scans.map((scan) => (
+                <div
+                  key={scan.id}
+                  className="group relative flex items-center justify-between p-3.5 bg-white border border-stone-200/60 rounded-xl hover:border-stone-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.02)] transition duration-200 cursor-pointer"
+                >
+                  {/* Select Scan */}
+                  <div
+                    onClick={() => handleLoadScan(scan)}
+                    className="flex items-center gap-3 text-left flex-1 min-w-0 pr-8"
+                  >
+                    <FileText size={16} className="text-stone-400 shrink-0" />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[13px] font-bold text-stone-700 group-hover:text-stone-950 truncate leading-tight">
+                        {scan.filename}
+                      </span>
+                      <span className="text-[10px] font-semibold text-stone-400 mt-1 leading-none">
+                        {scan.time} • {scan.score}% AI
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Delete Item Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setScans(scans.filter((s) => s.id !== scan.id));
+                      showToast(`Deleted ${scan.filename} from history`, 'success');
+                    }}
+                    className="absolute right-3 p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-md transition duration-150 cursor-pointer border-none outline-none md:opacity-0 md:group-hover:opacity-100"
+                    title="Delete Scan"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Backdrop overlay for drawer */}
+      {isHistoryOpen && (
+        <div
+          onClick={() => setIsHistoryOpen(false)}
+          className="fixed inset-0 bg-black/10 backdrop-blur-[1px] z-[55]"
+        />
+      )}
     </div>
   );
 };

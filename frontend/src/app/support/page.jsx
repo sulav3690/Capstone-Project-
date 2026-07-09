@@ -28,7 +28,7 @@ export default function SupportPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Sidebar info
-  const [displayName, setDisplayName] = useState('Sulav Sharma');
+  const [displayName, setDisplayName] = useState('');
   const subscriptionPlan = typeof window !== 'undefined' 
     ? safeLocalStorage.getItem('veritas_subscription_plan') || 'Free'
     : 'Free';
@@ -36,10 +36,12 @@ export default function SupportPage() {
   useEffect(() => {
     setIsMounted(true);
     const savedName = safeLocalStorage.getItem('veritas_display_name');
-    if (savedName) {
-      setDisplayName(savedName);
+    if (!savedName) {
+      router.push('/login');
+      return;
     }
-  }, []);
+    setDisplayName(savedName);
+  }, [router]);
 
   const toggleFaq = (index) => {
     if (openFaqIndices.includes(index)) {

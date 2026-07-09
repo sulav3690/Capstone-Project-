@@ -55,16 +55,18 @@ function PaymentPageContent() {
   );
 
   // Sidebar profile information
-  const [displayName, setDisplayName] = useState('Sulav Sharma');
+  const [displayName, setDisplayName] = useState('');
   const subscriptionPlan = safeLocalStorage.getItem('veritas_subscription_plan') || 'Free';
 
   useEffect(() => {
     setIsMounted(true);
     const savedName = safeLocalStorage.getItem('veritas_display_name');
-    if (savedName) {
-      setDisplayName(savedName);
+    if (!savedName) {
+      router.push('/login');
+      return;
     }
-  }, []);
+    setDisplayName(savedName);
+  }, [router]);
 
   const handlePaymentSubmit = (values) => {
     // We arrive here only if validation passed because we use handleSubmit from the hook

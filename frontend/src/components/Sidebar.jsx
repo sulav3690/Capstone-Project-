@@ -31,7 +31,7 @@ import safeLocalStorage from '../utils/safeLocalStorage';
  * @param {string} displayName - User's display name
  * @param {string} subscriptionPlan - User's subscription plan
  */
-export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayName = 'Sulav Sharma', subscriptionPlan = 'Free' }) {
+export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayName = '', subscriptionPlan = 'Free' }) {
   const router = useRouter();
   const pathname = usePathname();
 
