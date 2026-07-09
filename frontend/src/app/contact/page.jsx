@@ -112,7 +112,7 @@ export default function Contact() {
               <p className="text-stone-500 text-xs font-medium leading-relaxed mb-4 max-w-[280px]">
                 Check out our Frequently Asked Questions section on our home page. We might already have the answer!
               </p>
-              <Link href="/#faq" className="inline-flex items-center gap-1.5 text-xs font-bold text-[#4F33FF] hover:translate-x-1 transition-transform duration-200">
+              <Link href="/faq" className="inline-flex items-center gap-1.5 text-xs font-bold text-[#4F33FF] hover:translate-x-1 transition-transform duration-200">
                 View Frequently Asked Questions &rarr;
               </Link>
             </div>

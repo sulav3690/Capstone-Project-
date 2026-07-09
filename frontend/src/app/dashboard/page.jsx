@@ -6,13 +6,6 @@ import {
   Upload,
   AlertCircle,
   ShieldCheck,
-  LayoutDashboard,
-  User,
-  CreditCard,
-  HelpCircle,
-  LifeBuoy,
-  MessageSquare,
-  LogOut,
   Clipboard,
   Undo,
   Redo,
@@ -22,108 +15,25 @@ import {
   Underline,
   Link,
   MoreVertical,
-  ChevronLeft,
-  ChevronRight,
   Check,
   Plus,
   Minus,
   Sparkles,
   ArrowRight,
-  ArrowLeft,
-  X,
   CheckCircle,
-  Lock
+  Lock,
+  CreditCard,
+  User,
+  ChevronRight
 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Toggle from '../../components/ui/Toggle';
-import Footer from '../../components/Footer';
+import Sidebar from '../../components/Sidebar';
 import { useToast } from '../../components/ToastProvider';
+import safeLocalStorage from '../../utils/safeLocalStorage';
+import { analyzeText, buildHighlightedSegments } from '../../utils/analyzeText';
 
-const safeLocalStorage = {
-  getItem: (key) => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        return window.localStorage.getItem(key);
-      }
-    } catch (e) { /* SSR or restricted environment */ }
-    return null;
-  },
-  setItem: (key, value) => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.setItem(key, value);
-      }
-    } catch (e) { /* SSR or restricted environment */ }
-  },
-  removeItem: (key) => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.removeItem(key);
-      }
-    } catch (e) { /* SSR or restricted environment */ }
-  }
-};
-
-// ─── Simulated Analysis Engine ────────────────────────────────────────────────
-// Produces realistic, text-dependent scores without a backend
-function analyzeText(text) {
-  const words = text.trim().split(/\s+/);
-  const wordCount = words.length;
-  const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0);
-
-  // Avg words per sentence (AI tends to be consistent: ~18-22)
-  const avgWordsPerSentence = wordCount / Math.max(sentences.length, 1);
-
-  // Vocabulary richness: unique / total words
-  const uniqueWords = new Set(words.map((w) => w.toLowerCase().replace(/\W/g, '')));
-  const lexicalDiversity = uniqueWords.size / Math.max(wordCount, 1);
-
-  // Repetition score: how many words repeat >3 times
-  const freq = {};
-  words.forEach((w) => {
-    const wl = w.toLowerCase().replace(/\W/g, '');
-    freq[wl] = (freq[wl] || 0) + 1;
-  });
-  const repeatedWords = Object.values(freq).filter((c) => c > 3).length;
-  const repetitionRatio = repeatedWords / Math.max(uniqueWords.size, 1);
-
-  // AI probability signal: uniform sentence length + low lexical diversity + repetition
-  let aiSignal = 0;
-  if (avgWordsPerSentence > 16 && avgWordsPerSentence < 24) aiSignal += 0.25;
-  if (lexicalDiversity < 0.55) aiSignal += 0.30;
-  if (repetitionRatio > 0.05) aiSignal += 0.20;
-  if (wordCount < 30) aiSignal += 0.10; // Short texts are less conclusive
-
-  // Clamp aiSignal 0–0.80  (never 100% AI — always some uncertainty)
-  aiSignal = Math.min(aiSignal + Math.random() * 0.08, 0.80);
-
-  const aiPct = Math.round(aiSignal * 100);
-  const humanPct = Math.round((1 - aiSignal) * 0.88 * 100); // small gap for "humanized AI"
-  const humanizedPct = 100 - aiPct - humanPct;
-  const authenticity = humanPct;
-
-  // Misinformation: random-ish but seeded by text length + content
-  const misinfoKeywords = ['fake', 'false', 'hoax', 'conspiracy', 'rumor', 'unverified', 'claim'];
-  const misinfoHits = misinfoKeywords.filter((kw) =>
-    text.toLowerCase().includes(kw)
-  ).length;
-  const misinfoRisk = misinfoHits > 1 ? 'High' : misinfoHits === 1 ? 'Medium' : 'Low';
-
-  return { aiPct, humanPct, humanizedPct, authenticity, misinfoRisk };
-}
-
-// ─── Highlight words in the user's text ───────────────────────────────────────
-function buildHighlightedSegments(text, aiPct) {
-  const sentences = text.split(/(?<=[.!?])\s+/);
-  return sentences.map((sentence, i) => {
-    const hash = sentence.length + i;
-    if (aiPct > 50 && hash % 4 === 0) return { text: sentence, color: 'decoration-red-400 bg-red-50 text-red-800' };
-    if (hash % 3 === 0) return { text: sentence, color: 'decoration-[#1FA463]/40 bg-green-50 text-green-800' };
-    if (hash % 5 === 0) return { text: sentence, color: 'decoration-amber-400 bg-amber-50 text-amber-800' };
-    if (aiPct > 35 && hash % 7 === 0) return { text: sentence, color: 'decoration-orange-400 bg-orange-50/70 text-orange-800' };
-    return { text: sentence, color: null };
-  });
-}
+// ─── Analysis engine and localStorage are now imported from shared utils ──────
 
 const Detector = () => {
   const router = useRouter();
@@ -134,12 +44,15 @@ const Detector = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [wordCount, setWordCount] = useState(0);
   const [isEmpty, setIsEmpty] = useState(true);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [openFaqIndices, setOpenFaqIndices] = useState([]);
   const { showToast } = useToast();
 
   // App features state
-  const [subscriptionPlan, setSubscriptionPlan] = useState('Free');
+  const [subscriptionPlan, setSubscriptionPlan] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return safeLocalStorage.getItem('veritas_subscription_plan') || 'Free';
+    }
+    return 'Free';
+  });
   const [showResults, setShowResults] = useState(false);
   const [resultsData, setResultsData] = useState(null);
   const [segments, setSegments] = useState([]);
@@ -157,47 +70,36 @@ const Detector = () => {
   const resultsRef = useRef(null);
 
   const handleSubscribe = (planName) => {
-    setSubscriptionPlan(planName);
-    showToast(`Successfully upgraded to ${planName} Plan! Premium features unlocked.`, 'success');
-    setActiveTab('detector');
-    setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 100);
+    let price = 'Rs. 250';
+    if (planName === 'Yearly') price = 'Rs. 2500';
+    router.push(`/payment?planName=${encodeURIComponent(planName + ' Plan')}&planPrice=${encodeURIComponent(price)}`);
   };
 
-  // Auto-collapse sidebar on screen sizes below 1024px for responsiveness
+  // Read subscription plan and user profile from localStorage on mount
   useEffect(() => {
-    const handleResize = () => {
-      setIsSidebarCollapsed(window.innerWidth < 1024);
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const savedPlan = safeLocalStorage.getItem('veritas_subscription_plan');
+    if (savedPlan) {
+      setSubscriptionPlan(savedPlan);
+    }
+    const savedName = safeLocalStorage.getItem('veritas_display_name');
+    if (savedName) {
+      setDisplayName(savedName);
+    }
+    const savedEmail = safeLocalStorage.getItem('veritas_email');
+    if (savedEmail) {
+      setEmailAddress(savedEmail);
+    }
   }, []);
 
   // Onboarding survey states
   const [surveyData, setSurveyData] = useState(null);
   const [isMounted, setIsMounted] = useState(false);
-  const [showSurveyModal, setShowSurveyModal] = useState(false);
-  const [onboardingStep, setOnboardingStep] = useState(1);
-  const [onboardingData, setOnboardingData] = useState({
-    role: '',
-    experience: '',
-    detectorUsed: '',
-    heardAboutUs: '',
-    purpose: '',
-    frequency: '',
-    updates: '',
-    helpText: ''
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
     const completed = safeLocalStorage.getItem('veritas_onboarding_completed');
     if (!completed) {
-      setShowSurveyModal(true);
+      router.push('/survey');
     } else if (completed !== 'skipped') {
       try {
         setSurveyData(JSON.parse(completed));
@@ -205,75 +107,23 @@ const Detector = () => {
         // ignore errors
       }
     }
+
+    // Load active tab from URL query parameters if present
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab) {
+        setActiveTab(tab);
+      }
+    }
   }, [router]);
 
-  const handleOnboardingSelect = (field, value) => {
-    setOnboardingData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleNextStep = () => {
-    setOnboardingStep(prev => prev + 1);
-  };
-
-  const handlePrevStep = () => {
-    setOnboardingStep(prev => prev - 1);
-  };
-
-  const handleSkipOnboarding = () => {
-    safeLocalStorage.setItem('veritas_onboarding_completed', 'skipped');
-    setShowSurveyModal(false);
-    setOnboardingStep(1);
-  };
-
-  const handleSubmitOnboarding = () => {
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsSuccess(true);
-      safeLocalStorage.setItem('veritas_onboarding_completed', JSON.stringify(onboardingData));
-      setSurveyData(onboardingData);
-      setTimeout(() => {
-        setShowSurveyModal(false);
-        setIsSuccess(false);
-        setOnboardingStep(1);
-      }, 1500);
-    }, 1000);
-  };
-
-  const onboardingQuestions = {
-    role: {
-      question: "What best describes you?",
-      options: ["Student", "Teacher", "Researcher", "Content Creator", "Business Professional", "Other"]
-    },
-    heardAboutUs: {
-      question: "How did you hear about us?",
-      options: ["Google Search", "Social Media", "Friend/Colleague", "YouTube", "School/University", "Other"]
-    },
-    detectorUsed: {
-      question: "Have you used an AI detector before?",
-      options: ["Yes, frequently", "Yes, a few times", "No, this is my first time"]
-    },
-    purpose: {
-      question: "What do you plan to use this website for?",
-      options: ["Checking assignments", "Detecting AI-generated content", "Academic research", "Content writing", "Business use", "Other"]
-    },
-    frequency: {
-      question: "How often do you expect to use this platform?",
-      options: ["Daily", "Weekly", "Monthly", "Occasionally"]
-    },
-    updates: {
-      question: "Would you like product updates and tips?",
-      options: ["Yes", "No"]
-    },
-    experience: {
-      question: "What is your experience level with AI tools?",
-      options: ["Beginner", "Intermediate", "Advanced"]
-    },
-    helpText: {
-      question: "Is there anything specific you'd like us to help you with?"
+  useEffect(() => {
+    const requestedTab = new URLSearchParams(window.location.search).get('tab');
+    if (['dashboard', 'detector', 'account', 'plans'].includes(requestedTab)) {
+      setActiveTab(requestedTab);
     }
-  };
+  }, []);
 
   const handleSaveGeneral = (e) => {
     e.preventDefault();
@@ -297,35 +147,6 @@ const Detector = () => {
   };
 
   const MAX_WORDS = 5000;
-
-  const faqs = [
-    {
-      question: "What is VeritasAI?",
-      answer: "VeritasAI is a leading AI content and misinformation detector designed to analyze text and determine if it was authored by humans or generated by artificial intelligence tools like ChatGPT, GPT-4, Claude, or Gemini."
-    },
-    {
-      question: "How does AI detection work?",
-      answer: "VeritasAI uses machine learning models trained on millions of pages of human-written and AI-generated text. It analyzes linguistic patterns, perplexity (sentence structure predictability), and burstiness (variation in sentence lengths) to determine authenticity."
-    },
-    {
-      question: "Is VeritasAI's AI detector accurate?",
-      answer: "Yes, VeritasAI operates at a 90% accuracy rate, minimizing false positives while reliably flagging AI-generated text."
-    },
-    {
-      question: "Who is VeritasAI for?",
-      answer: "It is built for educators verifying student submissions, publishers and editors maintaining content integrity, content creators, and businesses checking copy authenticity."
-    },
-    {
-      question: "Does VeritasAI store my submitted text?",
-      answer: "No. Privacy is our core priority. All submitted text is analyzed in real-time, and we never store or share your content."
-    }
-  ];
-
-  const toggleFaq = (index) => {
-    setOpenFaqIndices((prev) =>
-      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
-    );
-  };
 
   const smoothScrollTo = (targetElement, duration = 800) => {
     if (!targetElement) return;
@@ -455,208 +276,16 @@ const Detector = () => {
   return (
     <div className="min-h-screen bg-[#FDFBF7] flex font-sans text-stone-800">
 
-      {/* Left Sidebar */}
-      <aside className={`bg-[#FDFBF7] border-r border-stone-200/60 flex flex-col justify-between shrink-0 h-screen sticky top-0 z-30 transition-all duration-300 ease-in-out relative ${isSidebarCollapsed ? 'w-16' : 'w-64'
-        }`}>
-
-        {/* Toggle Collapse Button */}
-        <button
-          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          className="absolute top-[88px] right-0 translate-x-1/2 w-6 h-6 bg-white border border-stone-200 rounded-full flex items-center justify-center hover:bg-stone-50 hover:border-stone-300 shadow-sm transition z-50 group cursor-pointer"
-          title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-        >
-          {isSidebarCollapsed ? (
-            <ChevronRight size={13} className="text-stone-500 group-hover:text-stone-800 transition" />
-          ) : (
-            <ChevronLeft size={13} className="text-stone-500 group-hover:text-stone-800 transition" />
-          )}
-        </button>
-
-        <div className={`flex flex-col gap-6 py-6 transition-all duration-300 ${isSidebarCollapsed ? 'px-3 items-center' : 'px-6'}`}>
-          {/* Logo / Brand */}
-          <div
-            onClick={() => router.push('/')}
-            className={`flex items-center gap-3 w-full cursor-pointer hover:opacity-80 transition-all ${isSidebarCollapsed ? 'justify-center' : ''}`}
-            title="Go to Homepage"
-          >
-            <div className="bg-gradient-to-br from-[#7755FF] to-[#4F33FF] p-[6px] rounded-lg shadow-lg shrink-0">
-              <ShieldCheck size={22} className="text-white" strokeWidth={2.5} />
-            </div>
-            {!isSidebarCollapsed && (
-              <span className="font-bold text-[22px] tracking-tight text-stone-900 transition-all duration-300 whitespace-nowrap overflow-hidden">
-                VeritasAI
-              </span>
-            )}
-          </div>
-
-          {/* Navigation Links */}
-          <nav className="flex flex-col gap-6 mt-4 w-full">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all w-full text-left ${activeTab === 'dashboard'
-                  ? 'bg-stone-900 text-white shadow-sm font-semibold'
-                  : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
-                } ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2.5'
-                }`}
-              title="Dashboard"
-            >
-              <LayoutDashboard size={18} className="shrink-0" />
-              {!isSidebarCollapsed && <span className="truncate">Dashboard</span>}
-            </button>
-
-            <button
-              onClick={() => setActiveTab('detector')}
-              className={`flex items-center gap-3 rounded-xl text-sm transition-all w-full text-left ${activeTab === 'detector'
-                  ? 'bg-stone-900 text-white shadow-sm font-semibold'
-                  : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
-                } ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2.5'
-                }`}
-              title="AI Content Detector"
-            >
-              <ShieldCheck size={18} className="shrink-0" />
-              {!isSidebarCollapsed && <span className="truncate">AI Detector</span>}
-            </button>
-
-            {/* Account Section */}
-            <div className="flex flex-col gap-2 w-full">
-              {!isSidebarCollapsed && (
-                <span className="text-xs font-bold text-stone-400/80 tracking-wider uppercase px-4 whitespace-nowrap">Account</span>
-              )}
-              <button
-                onClick={() => setActiveTab('account')}
-                className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all text-left w-full ${activeTab === 'account'
-                    ? 'bg-stone-900 text-white shadow-sm font-semibold'
-                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
-                  } ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
-                  }`}
-                title="Account"
-              >
-                <User size={18} className="shrink-0" />
-                {!isSidebarCollapsed && <span className="truncate">Account</span>}
-              </button>
-              <button
-                onClick={() => setActiveTab('plans')}
-                className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all text-left w-full ${activeTab === 'plans'
-                    ? 'bg-stone-900 text-white shadow-sm font-semibold'
-                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
-                  } ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
-                  }`}
-                title="Plans & Pricing"
-              >
-                <CreditCard size={18} className="shrink-0" />
-                {!isSidebarCollapsed && <span className="truncate">Plans & Pricing</span>}
-              </button>
-            </div>
-
-            {/* Help Section */}
-            <div className="flex flex-col gap-2 w-full">
-              {!isSidebarCollapsed && (
-                <span className="text-xs font-bold text-stone-400/80 tracking-wider uppercase px-4 whitespace-nowrap">Help</span>
-              )}
-              <button
-                onClick={() => setActiveTab('faq')}
-                className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all text-left w-full ${activeTab === 'faq'
-                    ? 'bg-stone-900 text-white shadow-sm font-semibold'
-                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
-                  } ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
-                  }`}
-                title="FAQ"
-              >
-                <HelpCircle size={18} className="shrink-0" />
-                {!isSidebarCollapsed && <span className="truncate">FAQ</span>}
-              </button>
-              <button
-                onClick={() => showToast('Support desk is currently under maintenance.', 'error')}
-                className={`flex items-center gap-3 text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 rounded-xl font-medium text-[15.5px] transition-all text-left w-full ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
-                  }`}
-                title="Support"
-              >
-                <LifeBuoy size={18} className="shrink-0" />
-                {!isSidebarCollapsed && <span className="truncate">Support</span>}
-              </button>
-              <button
-                onClick={() => window.open('https://discord.gg/YwGVj2V5Qk', '_blank')}
-                className={`flex items-center gap-3 text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 rounded-xl font-medium text-[15.5px] transition-all text-left w-full ${isSidebarCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
-                  }`}
-                title="Discord"
-              >
-                <MessageSquare size={18} className="shrink-0" />
-                {!isSidebarCollapsed && <span className="truncate">Discord</span>}
-              </button>
-            </div>
-          </nav>
-        </div>
-
-        {/* Profile Card / Footer inside Sidebar */}
-        <div className={`p-4 border-t border-stone-200/60 flex flex-col gap-3 transition-all duration-300 ${isSidebarCollapsed ? 'items-center px-2' : ''}`}>
-
-          {isSidebarCollapsed ? (
-            /* Collapsed State: Just the avatar with green status dot */
-            <button
-              onClick={() => setActiveTab('account')}
-              className="relative cursor-pointer hover:scale-105 transition-all w-10 h-10 rounded-full bg-gradient-to-br from-[#7755FF] to-[#4F33FF] flex items-center justify-center text-white font-bold text-[15px] shadow-sm border-none outline-none shrink-0"
-              title={`${displayName} - ${subscriptionPlan} Plan (Click to settings)`}
-            >
-              {displayName.charAt(0)}
-              <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-[#22C55E] ring-2 ring-white"></span>
-            </button>
-          ) : (
-            /* Expanded State: Creamy Glass User Card (Warm Beige Sand Contrast) */
-            <div className="w-full bg-[#EBE5D8]/80 backdrop-blur-[10px] border border-stone-300/60 shadow-[inset_4px_4px_12px_rgba(255,255,255,0.75),inset_-2px_-2px_6px_rgba(0,0,0,0.015),0_10px_25px_rgba(28,25,23,0.02)] p-4 rounded-2xl flex flex-col gap-3.5 text-stone-800 select-none">
-
-              {/* Profile Details */}
-              <div
-                onClick={() => setActiveTab('account')}
-                className="flex items-center gap-3 cursor-pointer hover:opacity-90 transition text-left"
-              >
-                <div className="relative shrink-0">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7755FF] to-[#4F33FF] flex items-center justify-center text-white font-bold text-sm shadow-sm">
-                    {displayName.charAt(0)}
-                  </div>
-                  {/* Green status dot */}
-                  <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-[#22C55E] ring-2 ring-[#EDE7DC]"></span>
-                </div>
-
-                <div className="flex flex-col min-w-0">
-                  <span className="font-extrabold text-[14px] tracking-tight truncate text-stone-900 leading-none mb-0.5">{displayName}</span>
-                  <span className="text-stone-500 text-[11px] font-semibold truncate leading-none">@{displayName.toLowerCase().replace(/\s+/g, '_')}</span>
-                </div>
-              </div>
-              {/* Action Buttons inside Card */}
-              <div className="flex flex-col gap-2">
-                {/* Upgrade Button */}
-                <button
-                  onClick={() => handleSubscribe('Monthly')}
-                  className="w-full py-1.5 pl-1.5 pr-4 bg-stone-950/5 hover:bg-stone-950/10 active:scale-98 border border-stone-900/5 rounded-full flex items-center gap-2.5 transition-all cursor-pointer text-left shadow-sm"
-                >
-                  <div className="w-6 h-6 rounded-full bg-slate-950 flex items-center justify-center shrink-0">
-                    <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
-                    </svg>
-                  </div>
-                  <span className="text-[11px] font-bold text-stone-800 tracking-wide">Upgrade Now</span>
-                </button>
-
-                {/* Logout Button inside the Card */}
-                <button
-                  onClick={() => {
-                    safeLocalStorage.removeItem('veritas_onboarding_completed');
-                    router.push('/login');
-                  }}
-                  className="w-full py-2 bg-red-50/70 hover:bg-red-100/90 active:scale-98 border border-red-100/80 rounded-full flex items-center justify-center gap-2 transition-all cursor-pointer text-red-600 text-[11px] font-bold shadow-sm"
-                >
-                  <LogOut size={13} className="shrink-0" />
-                  Logout
-                </button>
-              </div>
-
-            </div>
-          )}
-        </div>
-      </aside>
+      {/* Shared Sidebar Component */}
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        displayName={displayName}
+        subscriptionPlan={subscriptionPlan}
+      />
 
       {/* Main Content Pane - Automatically stretches dynamically when sidebar collapses */}
-      <main className="flex-1 p-4 sm:p-8 pt-10 sm:pt-16 max-w-[1240px] mx-auto w-full flex flex-col justify-start transition-all duration-300">
+      <main className="flex-1 p-4 sm:p-8 pt-14 md:pt-10 sm:pt-16 max-w-[1240px] mx-auto w-full flex flex-col justify-start transition-all duration-300">
         {activeTab === 'dashboard' && (
           <div className="flex flex-col gap-8 w-full max-w-[1000px] mx-auto text-left">
             {/* Header / Welcome Banner */}
@@ -1235,179 +864,120 @@ const Detector = () => {
 
         {activeTab === 'plans' && (
           /* Plans & Pricing Subview */
-          <div className="w-full flex flex-col items-center">
-            {/* Header section matching cream style */}
-            <div className="max-w-2xl text-center mb-12 mt-4">
-              <h1 className="text-[36px] sm:text-[42px] font-bold tracking-tight text-stone-800 mb-5 leading-[1.1]">
-                Choose Your Subscription<br />Plan
+          <div className="w-full overflow-x-hidden px-2 pb-4">
+            <div className="mx-auto max-w-2xl text-center">
+              <h1 className="text-[36px] font-black leading-tight tracking-normal text-stone-950 sm:text-[44px]">
+                Pricing Plans
               </h1>
-              <p className="text-stone-500 max-w-xl mx-auto text-[15px] font-medium leading-relaxed">
-                Select the best plan to detect AI generated content and misinformation with surgical precision.
+              <p className="mt-3 text-base font-medium leading-7 text-stone-500 sm:text-[17px]">
+                Choose the plan that fits your AI detection and misinformation review needs.
               </p>
             </div>
 
-            {/* Plan Cards list - styled cleanly with custom HSL borders, shadows and colors */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-[1100px] items-stretch text-left">
-
-              {/* Weekly Plan */}
-              <div className="relative flex flex-col h-full bg-white rounded-3xl p-8 border border-stone-200/60 shadow-[0_15px_40px_rgba(28,25,23,0.015)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_20px_50px_rgba(28,25,23,0.03)]">
-                <div className="mb-6 text-left">
-                  <h3 className="text-[17px] font-bold text-stone-900 mb-1">Weekly Plan</h3>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-black text-stone-900 leading-none tracking-tight">$5</span>
-                    <span className="text-stone-400 font-medium text-[13px] ml-1">/week</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => handleSubscribe('Weekly')}
-                  className="w-full py-3 rounded-xl font-bold text-[13px] mb-8 transition-all duration-200 bg-stone-100 text-stone-800 hover:bg-stone-200/80 active:scale-98"
+            <div className="mx-auto mt-8 grid w-full max-w-[1180px] grid-cols-1 gap-5 text-left md:grid-cols-3">
+              {[
+                {
+                  name: 'Free Tier',
+                  badge: 'Current Plan',
+                  badgeClassName: 'bg-stone-100 text-stone-500 border-stone-200',
+                  price: 'Rs. 0',
+                  period: '',
+                  features: [
+                    'Access to AI detector',
+                    'AI deep scan',
+                    '10,000 words per input',
+                    '50 AI detections',
+                    'Basic misinformation detection',
+                    'Standard response times'
+                  ],
+                  buttonText: 'Current Plan',
+                  disabled: true
+                },
+                {
+                  name: 'Monthly Plan',
+                  price: 'Rs. 250',
+                  period: '/mo',
+                  features: [
+                    'Access to AI detector',
+                    'AI deep scan',
+                    '50,000 words per input',
+                    '500 AI detections',
+                    'Advanced misinformation detection',
+                    'Fast response times',
+                    'Standard support'
+                  ],
+                  buttonText: 'Upgrade',
+                  subscribePlan: 'Monthly'
+                },
+                {
+                  name: 'Yearly Plan',
+                  badge: 'Most Popular',
+                  badgeClassName: 'bg-[#1FA463]/10 text-[#1FA463] border-[#1FA463]/20',
+                  price: 'Rs. 2500',
+                  period: '/yr',
+                  popular: true,
+                  features: [
+                    'Access to AI detector',
+                    'AI deep scan',
+                    '500,000 words per input',
+                    'Unlimited AI detections',
+                    'Detailed misinformation reports + AI vs Human detection',
+                    'Fastest response times',
+                    'Priority support'
+                  ],
+                  buttonText: 'Upgrade',
+                  subscribePlan: 'Yearly'
+                }
+              ].map((plan) => (
+                <article
+                  key={plan.name}
+                  className={`flex min-h-[455px] flex-col rounded-2xl bg-white px-6 py-6 ${
+                    plan.popular
+                      ? 'border-2 border-[#1FA463]'
+                      : 'border border-stone-200 hover:border-stone-300'
+                  }`}
                 >
-                  Subscribe Weekly
-                </button>
-
-                <ul className="flex-1 space-y-4">
-                  {[
-                    "50 detections",
-                    "Human vs AI",
-                    "Basic misinformation",
-                    "Standard speed"
-                  ].map((feature, idx) => (
-                    <li key={idx} className="flex items-center gap-3 text-[13px] text-stone-500 font-medium">
-                      <div className="border-[1.5px] border-[#1FA463] rounded-full p-[1px] flex-shrink-0 bg-[#1FA463]/5">
-                        <Check size={10} strokeWidth={4.5} className="text-[#1FA463]" />
-                      </div>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Monthly Plan (Highlighted) */}
-              <div className="relative flex flex-col h-full bg-white rounded-3xl p-8 border-2 border-[#1FA463] shadow-[0_25px_60px_rgba(31,164,99,0.08)] pt-11 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_30px_70px_rgba(31,164,99,0.12)]">
-
-                {/* Most Popular Badge */}
-                <span className="absolute -top-[14px] left-1/2 -translate-x-1/2 px-4 py-[6px] bg-[#1FA463] text-white text-[10px] font-extrabold rounded-full uppercase tracking-wider whitespace-nowrap z-10 shadow-sm shadow-[#1FA463]/30">
-                  Most Popular
-                </span>
-
-                <div className="mb-6 text-left">
-                  <h3 className="text-[17px] font-bold text-stone-900 mb-1">Monthly Plan</h3>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-black text-stone-900 leading-none tracking-tight">$20</span>
-                    <span className="text-stone-400 font-medium text-[13px] ml-1">/month</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => handleSubscribe('Monthly')}
-                  className="w-full py-3 rounded-xl font-bold text-[13px] mb-8 transition-all duration-200 bg-[#1FA463] text-white hover:bg-[#178a52] shadow-md shadow-[#1FA463]/20 active:scale-98"
-                >
-                  Subscribe Monthly
-                </button>
-
-                <ul className="flex-1 space-y-4">
-                  {[
-                    "Unlimited detections",
-                    "Humanized AI detection",
-                    "Advanced misinformation",
-                    "Detailed reports",
-                    "Faster processing"
-                  ].map((feature, idx) => (
-                    <li key={idx} className="flex items-center gap-3 text-[13px] text-stone-500 font-medium">
-                      <div className="border-[1.5px] border-[#1FA463] rounded-full p-[1px] flex-shrink-0 bg-[#1FA463]/5">
-                        <Check size={10} strokeWidth={4.5} className="text-[#1FA463]" />
-                      </div>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Yearly Plan */}
-              <div className="relative flex flex-col h-full bg-white rounded-3xl p-8 border border-stone-200/60 shadow-[0_15px_40px_rgba(28,25,23,0.015)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_20px_50px_rgba(28,25,23,0.03)]">
-                <div className="mb-6 text-left">
-                  <h3 className="text-[17px] font-bold text-stone-900 mb-1">Yearly Plan</h3>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-black text-stone-900 leading-none tracking-tight">$250</span>
-                    <span className="text-stone-400 font-medium text-[13px] ml-1">/year</span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleSubscribe('Yearly')}
-                  className="w-full py-3 rounded-xl font-bold text-[13px] mb-8 transition-all duration-200 bg-stone-100 text-stone-800 hover:bg-stone-200/80 active:scale-98"
-                >
-                  Subscribe Yearly
-                </button>
-                <ul className="flex-1 space-y-4">
-                  {[
-                    "Unlimited detection",
-                    "Advanced features",
-                    "Downloadable reports",
-                    "API access",
-                    "Priority support"
-                  ].map((feature, idx) => (
-                    <li key={idx} className="flex items-center gap-3 text-[13px] text-stone-500 font-medium">
-                      <div className="border-[1.5px] border-[#1FA463] rounded-full p-[1px] flex-shrink-0 bg-[#1FA463]/5">
-                        <Check size={10} strokeWidth={4.5} className="text-[#1FA463]" />
-                      </div>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'faq' && (
-          /* FAQ Subview matching homepage */
-          <div className="w-full flex flex-col items-center">
-            {/* Header section matching cream style */}
-            <div className="max-w-2xl text-center mb-12 mt-4">
-              <h1 className="text-[36px] sm:text-[42px] font-black tracking-tight text-stone-900 mb-5 leading-[1.1]">
-                FAQs about VeritasAI
-              </h1>
-              <p className="text-stone-500 max-w-xl mx-auto text-[15px] font-medium leading-relaxed">
-                Everything you need to know about VeritasAI and our detection systems.
-              </p>
-            </div>
-
-            {/* Accordion container matching homepage cream styling */}
-            <div className="flex flex-col gap-4 w-full max-w-[850px]">
-              {faqs.map((faq, index) => {
-                const isOpen = openFaqIndices.includes(index);
-                return (
-                  <div
-                    key={index}
-                    className={`border bg-white rounded-2xl overflow-hidden transition-all duration-300 w-full ${isOpen
-                        ? 'border-[#1FA463]/35 shadow-[0_10px_30px_rgba(31,164,99,0.025)]'
-                        : 'border-stone-200/80 shadow-[0_4px_20px_rgba(28,25,23,0.015)]'
-                      } hover:border-[#1FA463] hover:shadow-[0_12px_40px_rgba(31,164,99,0.05)]`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleFaq(index)}
-                      className="w-full flex items-center justify-between p-6 text-left font-semibold text-base sm:text-lg text-stone-900 hover:text-[#1FA463] transition-colors select-none"
-                    >
-                      <span>{faq.question}</span>
-                      <span className="text-[#1FA463] shrink-0 ml-4 transition-transform duration-200">
-                        {isOpen ? <Minus size={20} strokeWidth={2.5} /> : <Plus size={20} strokeWidth={2.5} />}
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-lg font-bold text-stone-950">{plan.name}</h2>
+                    {plan.badge && (
+                      <span className={`rounded-full border px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide ${plan.badgeClassName}`}>
+                        {plan.badge}
                       </span>
-                    </button>
-
-                    <div
-                      className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-[300px] border-t border-stone-100 opacity-100' : 'max-h-0 opacity-0'
-                        }`}
-                    >
-                      <p className="p-6 text-stone-600 text-sm leading-relaxed font-medium bg-[#FCFAF7]">
-                        {faq.answer}
-                      </p>
-                    </div>
+                    )}
                   </div>
-                );
-              })}
+
+                  <div className="mt-5 flex items-end gap-1">
+                    <span className="text-4xl font-black leading-none tracking-normal text-stone-950">{plan.price}</span>
+                    {plan.period && (
+                      <span className="pb-1 text-sm font-bold text-stone-400">{plan.period}</span>
+                    )}
+                  </div>
+
+                  <ul className="mt-6 flex flex-1 flex-col gap-3">
+                    {plan.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-3 text-sm font-medium leading-6 text-stone-600">
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1FA463]/10 text-[#1FA463]">
+                          <Check size={13} strokeWidth={3} />
+                        </span>
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <button
+                    type="button"
+                    disabled={plan.disabled}
+                    onClick={() => plan.subscribePlan && handleSubscribe(plan.subscribePlan)}
+                    className={`mt-6 h-11 rounded-xl px-5 text-sm font-bold ${
+                      plan.disabled
+                        ? 'cursor-not-allowed bg-stone-100 text-stone-400'
+                        : 'bg-stone-950 text-white hover:bg-[#1FA463]'
+                    }`}
+                  >
+                    {plan.buttonText}
+                  </button>
+                </article>
+              ))}
             </div>
           </div>
         )}
@@ -1613,333 +1183,7 @@ const Detector = () => {
             </div>
           </div>
         )}
-        {activeTab !== 'account' && <Footer className="!mt-16 md:!mt-24" />}
       </main>
-
-      {/* Onboarding Survey Popup Modal */}
-      {showSurveyModal && (
-        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-white border border-stone-200/50 rounded-[32px] p-8 md:p-10 shadow-2xl relative overflow-hidden animate-in fade-in zoom-in duration-300">
-            {/* Background elements inside modal */}
-            <div className="absolute -top-[50px] -right-[50px] w-[200px] h-[200px] bg-gradient-to-br from-[#7755FF]/5 to-[#4F33FF]/5 rounded-full blur-2xl pointer-events-none"></div>
-
-            {isSuccess ? (
-              <div className="py-12 flex flex-col items-center justify-center text-center gap-5">
-                <div className="w-16 h-16 bg-[#1FA463]/10 text-[#1FA463] rounded-full flex items-center justify-center animate-bounce">
-                  <Check size={32} strokeWidth={3} />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <h3 className="text-2xl font-black text-stone-900 tracking-tight">Survey Completed!</h3>
-                  <p className="text-stone-500 font-semibold text-sm max-w-sm">
-                    Thank you for your valuable feedback. Preparing your dashboard...
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-6">
-
-                {/* Header & Progress Bar */}
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between text-xs font-bold text-stone-400 uppercase tracking-widest">
-                    <span>Onboarding Survey</span>
-                    <span>Step {onboardingStep} of 4</span>
-                  </div>
-
-                  {/* Progress Line */}
-                  <div className="h-1.5 w-full bg-stone-200/60 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-[#7755FF] to-[#1FA463] rounded-full transition-all duration-300"
-                      style={{ width: `${(onboardingStep / 4) * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Step contents */}
-                <div className="min-h-[300px] flex flex-col justify-start gap-6 py-2">
-
-                  {/* Step 1: Role & Experience */}
-                  {onboardingStep === 1 && (
-                    <div className="flex flex-col gap-6 text-left">
-                      <div className="flex flex-col gap-3">
-                        <label className="text-lg font-bold text-stone-900 font-sans">
-                          {onboardingQuestions.role.question}
-                        </label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {onboardingQuestions.role.options.map((opt) => {
-                            const isSelected = onboardingData.role === opt;
-                            return (
-                              <button
-                                key={opt}
-                                type="button"
-                                onClick={() => handleOnboardingSelect('role', opt)}
-                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${isSelected
-                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm shadow-[#7B82FF]/10'
-                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                  }`}
-                              >
-                                <span>{opt}</span>
-                                {isSelected && <Check size={16} strokeWidth={3} />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-3">
-                        <label className="text-lg font-bold text-stone-900 font-sans">
-                          {onboardingQuestions.experience.question}
-                        </label>
-                        <div className="flex flex-wrap gap-3">
-                          {onboardingQuestions.experience.options.map((opt) => {
-                            const isSelected = onboardingData.experience === opt;
-                            return (
-                              <button
-                                key={opt}
-                                type="button"
-                                onClick={() => handleOnboardingSelect('experience', opt)}
-                                className={`flex-1 min-w-[100px] px-4 py-3 rounded-2xl border text-center text-sm font-semibold transition-all ${isSelected
-                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm shadow-[#7B82FF]/10'
-                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                  }`}
-                              >
-                                {opt}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 2: AI Detector Usage & Source */}
-                  {onboardingStep === 2 && (
-                    <div className="flex flex-col gap-6 text-left">
-                      <div className="flex flex-col gap-3">
-                        <label className="text-lg font-bold text-stone-900 font-sans">
-                          {onboardingQuestions.detectorUsed.question}
-                        </label>
-                        <div className="flex flex-col gap-2.5">
-                          {onboardingQuestions.detectorUsed.options.map((opt) => {
-                            const isSelected = onboardingData.detectorUsed === opt;
-                            return (
-                              <button
-                                key={opt}
-                                type="button"
-                                onClick={() => handleOnboardingSelect('detectorUsed', opt)}
-                                className={`px-5 py-3.5 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${isSelected
-                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm'
-                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                  }`}
-                              >
-                                <span>{opt}</span>
-                                {isSelected && <Check size={16} strokeWidth={3} />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-3">
-                        <label className="text-lg font-bold text-stone-900 font-sans">
-                          {onboardingQuestions.heardAboutUs.question}
-                        </label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {onboardingQuestions.heardAboutUs.options.map((opt) => {
-                            const isSelected = onboardingData.heardAboutUs === opt;
-                            return (
-                              <button
-                                key={opt}
-                                type="button"
-                                onClick={() => handleOnboardingSelect('heardAboutUs', opt)}
-                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${isSelected
-                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm'
-                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                  }`}
-                              >
-                                <span>{opt}</span>
-                                {isSelected && <Check size={16} strokeWidth={3} />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 3: Purpose & Frequency */}
-                  {onboardingStep === 3 && (
-                    <div className="flex flex-col gap-6 text-left">
-                      <div className="flex flex-col gap-3">
-                        <label className="text-lg font-bold text-stone-900 font-sans">
-                          {onboardingQuestions.purpose.question}
-                        </label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {onboardingQuestions.purpose.options.map((opt) => {
-                            const isSelected = onboardingData.purpose === opt;
-                            return (
-                              <button
-                                key={opt}
-                                type="button"
-                                onClick={() => handleOnboardingSelect('purpose', opt)}
-                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${isSelected
-                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm'
-                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                  }`}
-                              >
-                                <span>{opt}</span>
-                                {isSelected && <Check size={16} strokeWidth={3} />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-3">
-                        <label className="text-lg font-bold text-stone-900 font-sans">
-                          {onboardingQuestions.frequency.question}
-                        </label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {onboardingQuestions.frequency.options.map((opt) => {
-                            const isSelected = onboardingData.frequency === opt;
-                            return (
-                              <button
-                                key={opt}
-                                type="button"
-                                onClick={() => handleOnboardingSelect('frequency', opt)}
-                                className={`px-4 py-3 rounded-2xl border text-left text-sm font-semibold transition-all flex items-center justify-between ${isSelected
-                                    ? 'bg-[#7B82FF]/5 border-[#7B82FF] text-[#7B82FF] shadow-sm'
-                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                  }`}
-                              >
-                                <span>{opt}</span>
-                                {isSelected && <Check size={16} strokeWidth={3} />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 4: Updates & Submission */}
-                  {onboardingStep === 4 && (
-                    <div className="flex flex-col gap-5 justify-center items-center py-4 text-center">
-                      <div className="w-14 h-14 bg-gradient-to-br from-[#7755FF]/20 to-[#7755FF]/5 rounded-2xl flex items-center justify-center mb-1">
-                        <Sparkles size={28} className="text-[#7755FF]" />
-                      </div>
-                      <div className="text-center max-w-md flex flex-col gap-1.5">
-                        <h4 className="text-2xl font-black text-stone-900 leading-tight">Join the VeritasAI Community!</h4>
-                        <p className="text-stone-500 font-medium text-sm leading-relaxed">
-                          We post regular product tips, AI detection research insights, and new feature updates.
-                        </p>
-                      </div>
-
-                      <div className="flex flex-col gap-2 w-full max-w-sm mt-1 text-left">
-                        <label className="text-sm font-bold text-stone-700">
-                          {onboardingQuestions.updates.question}
-                        </label>
-                        <div className="flex gap-3">
-                          {onboardingQuestions.updates.options.map((opt) => {
-                            const isSelected = onboardingData.updates === opt;
-                            return (
-                              <button
-                                key={opt}
-                                type="button"
-                                onClick={() => handleOnboardingSelect('updates', opt)}
-                                className={`flex-1 py-2.5 rounded-xl border text-center text-xs font-bold transition-all ${isSelected
-                                    ? 'bg-[#1FA463]/5 border-[#1FA463] text-[#1FA463] shadow-sm'
-                                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50/50'
-                                  }`}
-                              >
-                                {opt}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-2 w-full max-w-sm text-left">
-                        <label className="text-sm font-bold text-stone-700">
-                          {onboardingQuestions.helpText.question}
-                        </label>
-                        <textarea
-                          value={onboardingData.helpText}
-                          onChange={(e) => handleOnboardingSelect('helpText', e.target.value)}
-                          placeholder="Type your response here..."
-                          rows={2.5}
-                          className="w-full px-4 py-3 rounded-2xl border border-stone-200 bg-white text-sm font-medium text-stone-800 placeholder-stone-400 focus:outline-none focus:border-[#7B82FF] focus:ring-1 focus:ring-[#7B82FF] transition-all resize-none"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                </div>
-
-                {/* Footer Buttons */}
-                <div className="flex items-center justify-between border-t border-stone-100 pt-6">
-
-                  {/* Back button */}
-                  {onboardingStep > 1 ? (
-                    <button
-                      type="button"
-                      onClick={handlePrevStep}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-2xl border border-stone-200 text-stone-600 hover:bg-stone-50 hover:text-stone-800 text-sm font-bold transition"
-                    >
-                      <ArrowLeft size={16} />
-                      Back
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleSkipOnboarding}
-                      className="text-stone-400 hover:text-stone-600 text-sm font-bold transition px-2 py-2 cursor-pointer"
-                    >
-                      Skip Onboarding
-                    </button>
-                  )}
-
-                  {/* Next / Submit button */}
-                  {onboardingStep < 4 ? (
-                    <button
-                      type="button"
-                      onClick={handleNextStep}
-                      disabled={
-                        (onboardingStep === 1 && (!onboardingData.role || !onboardingData.experience)) ||
-                        (onboardingStep === 2 && (!onboardingData.detectorUsed || !onboardingData.heardAboutUs)) ||
-                        (onboardingStep === 3 && (!onboardingData.purpose || !onboardingData.frequency))
-                      }
-                      className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl text-white text-sm font-bold transition shadow-md hover:shadow-lg ${((onboardingStep === 1 && (!onboardingData.role || !onboardingData.experience)) ||
-                          (onboardingStep === 2 && (!onboardingData.detectorUsed || !onboardingData.heardAboutUs)) ||
-                          (onboardingStep === 3 && (!onboardingData.purpose || !onboardingData.frequency)))
-                          ? 'bg-stone-300 text-stone-500 cursor-not-allowed shadow-none'
-                          : 'bg-[#7B82FF] hover:bg-[#6870fa]'
-                        }`}
-                    >
-                      Next
-                      <ArrowRight size={16} />
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleSubmitOnboarding}
-                      disabled={isSubmitting || !onboardingData.updates}
-                      className={`flex items-center gap-2 px-8 py-2.5 rounded-2xl text-white text-sm font-bold transition shadow-md hover:shadow-lg ${isSubmitting || !onboardingData.updates
-                          ? 'bg-stone-300 text-stone-500 cursor-not-allowed shadow-none'
-                          : 'bg-[#1FA463] hover:bg-[#178a52] shadow-[#1FA463]/15'
-                        }`}
-                    >
-                      {isSubmitting ? 'Submitting...' : 'Submit Answers'}
-                    </button>
-                  )}
-
-                </div>
-
-              </div>
-            )}
-
-          </div>
-        </div>
-      )}
     </div>
   );
 };

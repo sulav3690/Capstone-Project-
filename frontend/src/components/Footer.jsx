@@ -4,10 +4,7 @@ import Link from 'next/link';
 
 const Footer = ({ className = "" }) => {
   return (
-    <footer className={`w-full bg-[#FDFBF7] border-t border-stone-200/60 pt-16 pb-10 mt-20 relative overflow-hidden rounded-b-3xl ${className}`}>
-      {/* Subtle top divider line */}
-      <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-stone-300 to-transparent"></div>
-
+    <footer className={`w-full bg-[#FDFBF7] border-t border-stone-200/70 pt-12 pb-10 ${className}`}>
       <div className="max-w-[1200px] mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-end">
         
         {/* Left Side: Brand Logo */}
@@ -27,9 +24,9 @@ const Footer = ({ className = "" }) => {
               <div className="flex flex-col gap-3">
                 <h4 className="text-stone-900 font-extrabold text-sm tracking-tight">Products</h4>
                 <ul className="flex flex-col gap-2.5 text-xs font-semibold text-stone-500">
-                  <li><Link href="/dashboard" className="hover:text-stone-900 transition-colors">AI Detector</Link></li>
-                  <li><Link href="/dashboard" className="hover:text-[#1FA463] transition-colors">Misinformation Signals</Link></li>
-                  <li><Link href="/dashboard" className="hover:text-stone-900 transition-colors">Plagiarism Check</Link></li>
+                  <li><Link href="/dashboard?tab=detector" className="hover:text-stone-900 transition-colors">AI Detector</Link></li>
+                  <li><Link href="/dashboard?tab=detector" className="hover:text-[#1FA463] transition-colors">Misinformation Signals</Link></li>
+                  <li><Link href="/dashboard?tab=detector" className="hover:text-stone-900 transition-colors">Plagiarism Check</Link></li>
                 </ul>
               </div>
               <div className="text-[11px] font-semibold text-stone-400 mt-6 hover:text-stone-700 transition-colors">
@@ -42,9 +39,9 @@ const Footer = ({ className = "" }) => {
               <div className="flex flex-col gap-3">
                 <h4 className="text-stone-900 font-extrabold text-sm tracking-tight">Help</h4>
                 <ul className="flex flex-col gap-2.5 text-xs font-semibold text-stone-500">
-                  <li><Link href="/#faq" className="hover:text-stone-900 transition-colors">FAQs</Link></li>
-                  <li><Link href="/subscription" className="hover:text-stone-900 transition-colors">Plans & Pricing</Link></li>
-                  <li><Link href="/contact" className="hover:text-stone-900 transition-colors">Contact Support</Link></li>
+                  <li><Link href="/faq" className="hover:text-stone-900 transition-colors">FAQs</Link></li>
+                  <li><Link href="/dashboard?tab=plans" className="hover:text-stone-900 transition-colors">Plans & Pricing</Link></li>
+                  <li><Link href="/support" className="hover:text-stone-900 transition-colors">Contact Support</Link></li>
                 </ul>
               </div>
               <div className="text-[11px] font-semibold text-stone-400 mt-6 hover:text-stone-700 transition-colors">

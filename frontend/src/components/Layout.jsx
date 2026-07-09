@@ -1,6 +1,5 @@
 import React from 'react';
 import Navbar from './Navbar';
-import Footer from './Footer';
 
 const Layout = ({ children }) => {
   return (
@@ -9,8 +8,6 @@ const Layout = ({ children }) => {
       <main className="flex-1 p-6 sm:p-10 max-w-[1400px] mx-auto w-full flex flex-col justify-start">
         {children}
       </main>
-      
-      <Footer className="!mt-16 md:!mt-24" />
     </div>
   );
 };
