@@ -26,6 +26,67 @@ export default function AuthContainer({ mode }) {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
 
+
+  const loginForm = useFormValidation(
+    { username: '', password: '' },
+    (values) => {
+      const errors = {};
+      if (!values.username) errors.username = "Username is required";
+      if (!values.password) errors.password = "Password is required";
+      return errors;
+    }
+  );
+
+  const registerForm = useFormValidation(
+    { username: '', password: '', fullName: '', email: '', phone: '', countryCode: '+977', role: '' },
+    (values) => {
+      const errors = {};
+      if (!values.username || !/^[a-zA-Z0-9]+$/.test(values.username)) {
+        errors.username = "Username must be alphanumeric";
+      }
+      if (!values.password || !/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]|.*[^a-zA-Z0-9]).{8,}$/.test(values.password)) {
+        errors.password = "Min 8 chars, 1 uppercase, 1 lowercase, 1 number/symbol";
+      }
+      if (!values.fullName || !/^[a-zA-Z]+\s+[a-zA-Z\s]+$/.test(values.fullName)) {
+        errors.fullName = "Full Name must contain at least 2 words (letters only)";
+      }
+      if (!values.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
+        errors.email = "Valid email is required";
+      }
+      if (!values.phone || !/^[0-9]{10}$/.test(values.phone)) {
+        errors.phone = "Phone must be exactly 10 digits";
+      }
+      if (!values.role) errors.role = "Role is required";
+      return errors;
+    }
+  );
+
+  // Password Strength State
+  const [passwordStrength, setPasswordStrength] = useState(0);
+  const [passwordLabel, setPasswordLabel] = useState("");
+
+  // Calculate password strength whenever register password changes
+  useEffect(() => {
+    if (mode === 'register') {
+      const pwd = registerForm.values.password;
+      let strength = 0;
+      if (pwd.length > 5) strength += 25;
+      if (pwd.length >= 8) strength += 25;
+      if (/[A-Z]/.test(pwd)) strength += 25;
+      if (/[0-9]/.test(pwd) || /[^A-Za-z0-9]/.test(pwd)) strength += 25;
+      setPasswordStrength(strength);
+
+      if (strength >= 75 && /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]|.*[^a-zA-Z0-9]).{8,}$/.test(pwd)) {
+        setPasswordLabel("Strong");
+      } else if (strength > 0) {
+        setPasswordLabel("Weak");
+      } else {
+        setPasswordLabel("");
+      }
+    }
+  }, [registerForm.values.password, mode]);
+
+  
   // Simple Math Captcha State
   const [captchaNum1, setCaptchaNum1] = useState(0);
   const [captchaNum2, setCaptchaNum2] = useState(0);
@@ -36,6 +97,7 @@ export default function AuthContainer({ mode }) {
     setCaptchaNum2(Math.floor(Math.random() * 9) + 1); // 1-9
     setCaptchaAnswer('');
   };
+
 
   useEffect(() => {
     generateCaptcha();
@@ -171,7 +233,7 @@ export default function AuthContainer({ mode }) {
             <Link href="/subscription" className="text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide">
               Pricing
             </Link>
-            <Link href="/#faq" className="text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide">
+            <Link href="/faq" className="text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide">
               FAQ
             </Link>
           </div>
@@ -269,6 +331,29 @@ export default function AuthContainer({ mode }) {
               
               <div className="w-full max-w-md flex flex-col gap-6 relative">
                 
+                {/* Mobile Mini Showcase (Visible only on small screens) */}
+                <div className="lg:hidden flex flex-col items-center gap-4 mb-2 pb-6 border-b border-stone-100">
+                  <div className="bg-[#1FA463]/10 border border-[#1FA463]/25 text-[#1FA463] text-[10px] font-extrabold px-3 py-1 rounded-full flex items-center gap-1.5 tracking-wider uppercase select-none shadow-sm">
+                    <Sparkles size={11} className="animate-pulse" />
+                    Dynamic Analysis Active
+                  </div>
+                  <div className="flex items-center justify-between w-full bg-[#121824] rounded-2xl p-4 shadow-lg border border-stone-800">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-stone-400 text-[10px] font-extrabold uppercase tracking-widest">Live Score</span>
+                      <span className={`text-[15px] font-black ${currentScore > 70 ? 'text-[#1FA463]' : 'text-red-400'}`}>
+                        {currentScore}% {currentStatus}
+                      </span>
+                    </div>
+                    <div className="h-8 w-px bg-stone-700/50"></div>
+                    <div className="flex flex-col gap-1 items-end">
+                      <span className="text-stone-400 text-[10px] font-extrabold uppercase tracking-widest">Misinfo Risk</span>
+                      <span className={`text-[13px] font-bold ${currentRisk === 'Low Risk' ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {currentRisk}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Header */}
                 <div className="flex flex-col items-center gap-1.5">
                   <div className="bg-gradient-to-br from-[#1FA463]/10 to-transparent p-3 rounded-2xl border border-[#1FA463]/10 mb-1 select-none">

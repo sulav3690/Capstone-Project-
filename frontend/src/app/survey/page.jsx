@@ -98,7 +98,9 @@ export default function SurveyPage() {
       
       setTimeout(() => {
         if (planChoice === 'Premium') {
-          router.push('/payment?planName=Monthly%20Plan&planPrice=%2420');
+          router.push('/payment?planName=Monthly%20Plan&planPrice=Rs.%20250');
+        } else if (planChoice === 'Yearly') {
+          router.push('/payment?planName=Yearly%20Plan&planPrice=Rs.%202500');
         } else {
           router.push('/dashboard');
         }
@@ -243,7 +245,7 @@ export default function SurveyPage() {
           {/* RIGHT PANEL: Interactive Options */}
           <div className="w-full md:w-[58%] flex flex-col justify-center items-center px-6 md:px-16 py-12 md:py-16 overflow-y-auto bg-white/40 backdrop-blur-sm">
             
-            <div key={onboardingStep} className="w-full max-w-xl flex flex-col justify-center items-center">
+            <div key={onboardingStep} className={`w-full flex flex-col justify-center items-center ${onboardingStep === 4 ? 'max-w-5xl' : 'max-w-xl'}`}>
               
               {/* STEP 1: ROLE SELECTION */}
               {onboardingStep === 1 && (
@@ -410,93 +412,110 @@ export default function SurveyPage() {
               {onboardingStep === 4 && (
                 <div className="w-full flex flex-col gap-6 animate-slideUp">
                   
-                  <div className="w-full flex flex-col sm:flex-row gap-6 items-stretch">
-                    {/* Basic Plan Card */}
-                    <div className="flex-1 bg-white border border-stone-200 rounded-[32px] p-6 md:p-8 flex flex-col justify-between shadow-sm transition hover:shadow-md text-left">
-                      <div>
-                        <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1 block">TRIAL LEVEL</span>
-                        <h3 className="text-xl font-bold text-stone-900 mb-2">Basic</h3>
-                        
-                        <div className="flex items-baseline gap-0.5 mb-6">
-                          <span className="text-3xl font-black text-stone-900">$0</span>
-                          <span className="text-stone-400 font-medium text-xs ml-1">/ forever</span>
-                        </div>
-
-                        <ul className="space-y-3.5 mb-8 text-[13px] font-medium text-stone-500">
-                          <li className="flex items-center gap-2.5">
-                            <Check size={14} className="text-[#1FA463]" />
-                            Basic AI scan
-                          </li>
-                          <li className="flex items-center gap-2.5">
-                            <Check size={14} className="text-[#1FA463]" />
-                            Chrome extension
-                          </li>
-                          <li className="flex items-center gap-2.5">
-                            <Check size={14} className="text-[#1FA463]" />
-                            10,000 words/month
-                          </li>
-                        </ul>
-                      </div>
-
-                      <button
-                        onClick={() => handleSubmitSurvey('Basic')}
-                        disabled={isSubmitting}
-                        className="w-full py-3 bg-stone-100 hover:bg-stone-200/80 active:scale-98 text-stone-600 text-[13px] font-semibold rounded-2xl transition cursor-pointer text-center"
+                  <div className="grid w-full grid-cols-1 gap-5 md:grid-cols-3">
+                    {[
+                      {
+                        name: 'Free Tier',
+                        badge: 'Current Plan',
+                        badgeClassName: 'bg-stone-100 text-stone-500 border-stone-200',
+                        price: 'Rs. 0',
+                        period: '',
+                        features: [
+                          'Access to AI detector',
+                          'AI deep scan',
+                          '10,000 words per input',
+                          '50 AI detections',
+                          'Basic misinformation detection',
+                          'Standard response times'
+                        ],
+                        buttonText: 'Current Plan',
+                        planChoice: 'Basic',
+                        disabledStyle: true
+                      },
+                      {
+                        name: 'Monthly Plan',
+                        price: 'Rs. 250',
+                        period: '/mo',
+                        features: [
+                          'Access to AI detector',
+                          'AI deep scan',
+                          '50,000 words per input',
+                          '500 AI detections',
+                          'Advanced misinformation detection',
+                          'Fast response times',
+                          'Standard support'
+                        ],
+                        buttonText: 'Upgrade',
+                        planChoice: 'Premium'
+                      },
+                      {
+                        name: 'Yearly Plan',
+                        badge: 'Most Popular',
+                        badgeClassName: 'bg-[#1FA463]/10 text-[#1FA463] border-[#1FA463]/20',
+                        price: 'Rs. 2500',
+                        period: '/yr',
+                        popular: true,
+                        features: [
+                          'Access to AI detector',
+                          'AI deep scan',
+                          '500,000 words per input',
+                          'Unlimited AI detections',
+                          'Detailed misinformation reports + AI vs Human detection',
+                          'Fastest response times',
+                          'Priority support'
+                        ],
+                        buttonText: 'Upgrade',
+                        planChoice: 'Yearly'
+                      }
+                    ].map((plan) => (
+                      <article
+                        key={plan.name}
+                        className={`flex min-h-[455px] flex-col rounded-2xl bg-white px-6 py-6 text-left ${
+                          plan.popular
+                            ? 'border-2 border-[#1FA463]'
+                            : 'border border-stone-200 hover:border-stone-300'
+                        }`}
                       >
-                        Continue with Basic
-                      </button>
-                    </div>
-
-                    {/* Premium Plan Card */}
-                    <div className="flex-1 bg-white border-2 border-[#1FA463] rounded-[32px] p-6 md:p-8 flex flex-col justify-between shadow-md relative transition hover:shadow-lg text-left">
-                      <span className="absolute -top-[13px] left-1/2 -translate-x-1/2 bg-[#1FA463] text-white text-[9px] font-extrabold uppercase px-3.5 py-1 rounded-full tracking-wider whitespace-nowrap shadow-sm">
-                        RECOMMENDED FOR YOU
-                      </span>
-
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-bold text-[#1FA463] uppercase tracking-widest text-[9.5px]">FULL ACCESS</span>
-                          <Sparkles size={14} className="text-[#1FA463]" />
-                        </div>
-                        <h3 className="text-xl font-bold text-stone-900 mb-2">Premium Monthly</h3>
-
-                        <div className="flex flex-col mb-6">
-                          <div className="flex items-baseline gap-0.5">
-                            <span className="text-3xl font-black text-[#1FA463]">$20</span>
-                            <span className="text-stone-400 font-medium text-xs ml-1.5">/ month</span>
-                          </div>
-                          <span className="text-stone-500 text-[11px] font-semibold mt-1">1 Month Subscription</span>
+                        <div className="flex items-center gap-3">
+                          <h3 className="text-lg font-bold text-stone-950">{plan.name}</h3>
+                          {plan.badge && (
+                            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide ${plan.badgeClassName}`}>
+                              {plan.badge}
+                            </span>
+                          )}
                         </div>
 
-                        <ul className="space-y-3.5 mb-8 text-[13px] font-medium text-stone-500">
-                          <li className="flex items-center gap-2.5">
-                            <Check size={14} className="text-[#1FA463]" />
-                            Advanced AI scan
-                          </li>
-                          <li className="flex items-center gap-2.5">
-                            <Check size={14} className="text-[#1FA463]" />
-                            Plagiarism scan
-                          </li>
-                          <li className="flex items-center gap-2.5">
-                            <Check size={14} className="text-[#1FA463]" />
-                            300,000 words/month
-                          </li>
-                          <li className="flex items-center gap-2.5">
-                            <Check size={14} className="text-[#1FA463]" />
-                            Detailed PDF reports
-                          </li>
+                        <div className="mt-5 flex items-end gap-1">
+                          <span className="text-4xl font-black leading-none tracking-normal text-stone-950">{plan.price}</span>
+                          {plan.period && (
+                            <span className="pb-1 text-sm font-bold text-stone-400">{plan.period}</span>
+                          )}
+                        </div>
+
+                        <ul className="mt-6 flex flex-1 flex-col gap-3">
+                          {plan.features.map((feature) => (
+                            <li key={feature} className="flex items-start gap-3 text-sm font-medium leading-6 text-stone-600">
+                              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1FA463]/10 text-[#1FA463]">
+                                <Check size={13} strokeWidth={3} />
+                              </span>
+                              <span>{feature}</span>
+                            </li>
+                          ))}
                         </ul>
-                      </div>
 
-                      <button
-                        onClick={() => handleSubmitSurvey('Premium')}
-                        disabled={isSubmitting}
-                        className="w-full py-3 bg-[#1FA463] hover:bg-[#178a52] active:scale-98 text-white text-[13px] font-bold rounded-2xl transition shadow-sm cursor-pointer text-center"
-                      >
-                        Subscribe Premium
-                      </button>
-                    </div>
-
+                        <button
+                          onClick={() => handleSubmitSurvey(plan.planChoice)}
+                          disabled={isSubmitting}
+                          className={`mt-6 h-11 rounded-xl px-5 text-sm font-bold ${
+                            plan.disabledStyle
+                              ? 'bg-stone-100 text-stone-400 hover:bg-stone-200/80'
+                              : 'bg-stone-950 text-white hover:bg-[#1FA463]'
+                          }`}
+                        >
+                          {plan.buttonText}
+                        </button>
+                      </article>
+                    ))}
                   </div>
 
                   {/* Bridge link to see weekly / yearly subscription alternatives */}

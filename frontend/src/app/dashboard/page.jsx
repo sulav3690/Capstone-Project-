@@ -144,9 +144,8 @@ const Detector = () => {
   const resultsRef = useRef(null);
 
   const handleSubscribe = (planName) => {
-    let price = '$20';
-    if (planName === 'Weekly') price = '$5';
-    if (planName === 'Yearly') price = '$250';
+    let price = 'Rs. 250';
+    if (planName === 'Yearly') price = 'Rs. 2500';
     router.push(`/payment?planName=${encodeURIComponent(planName + ' Plan')}&planPrice=${encodeURIComponent(price)}`);
   };
 
@@ -933,128 +932,120 @@ const Detector = () => {
 
         {activeTab === 'plans' && (
           /* Plans & Pricing Subview */
-          <div className="w-full flex flex-col items-center">
-            {/* Header section matching cream style */}
-            <div className="max-w-2xl text-center mb-12 mt-4">
-              <h1 className="text-[36px] sm:text-[42px] font-bold tracking-tight text-stone-800 mb-5 leading-[1.1]">
-                Choose Your Subscription<br />Plan
+          <div className="w-full overflow-x-hidden px-2 pb-4">
+            <div className="mx-auto max-w-2xl text-center">
+              <h1 className="text-[36px] font-black leading-tight tracking-normal text-stone-950 sm:text-[44px]">
+                Pricing Plans
               </h1>
-              <p className="text-stone-500 max-w-xl mx-auto text-[15px] font-medium leading-relaxed">
-                Select the best plan to detect AI generated content and misinformation with surgical precision.
+              <p className="mt-3 text-base font-medium leading-7 text-stone-500 sm:text-[17px]">
+                Choose the plan that fits your AI detection and misinformation review needs.
               </p>
             </div>
 
-            {/* Plan Cards list - styled cleanly with custom HSL borders, shadows and colors */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-[1100px] items-stretch text-left">
-
-              {/* Weekly Plan */}
-              <div className="relative flex flex-col h-full bg-white rounded-3xl p-8 border border-stone-200/60 shadow-[0_15px_40px_rgba(28,25,23,0.015)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_20px_50px_rgba(28,25,23,0.03)]">
-                <div className="mb-6 text-left">
-                  <h3 className="text-[17px] font-bold text-stone-900 mb-1">Weekly Plan</h3>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-black text-stone-900 leading-none tracking-tight">$5</span>
-                    <span className="text-stone-400 font-medium text-[13px] ml-1">/week</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => handleSubscribe('Weekly')}
-                  className="w-full py-3 rounded-xl font-bold text-[13px] mb-8 transition-all duration-200 bg-stone-100 text-stone-800 hover:bg-stone-200/80 active:scale-98"
+            <div className="mx-auto mt-8 grid w-full max-w-[1180px] grid-cols-1 gap-5 text-left md:grid-cols-3">
+              {[
+                {
+                  name: 'Free Tier',
+                  badge: 'Current Plan',
+                  badgeClassName: 'bg-stone-100 text-stone-500 border-stone-200',
+                  price: 'Rs. 0',
+                  period: '',
+                  features: [
+                    'Access to AI detector',
+                    'AI deep scan',
+                    '10,000 words per input',
+                    '50 AI detections',
+                    'Basic misinformation detection',
+                    'Standard response times'
+                  ],
+                  buttonText: 'Current Plan',
+                  disabled: true
+                },
+                {
+                  name: 'Monthly Plan',
+                  price: 'Rs. 250',
+                  period: '/mo',
+                  features: [
+                    'Access to AI detector',
+                    'AI deep scan',
+                    '50,000 words per input',
+                    '500 AI detections',
+                    'Advanced misinformation detection',
+                    'Fast response times',
+                    'Standard support'
+                  ],
+                  buttonText: 'Upgrade',
+                  subscribePlan: 'Monthly'
+                },
+                {
+                  name: 'Yearly Plan',
+                  badge: 'Most Popular',
+                  badgeClassName: 'bg-[#1FA463]/10 text-[#1FA463] border-[#1FA463]/20',
+                  price: 'Rs. 2500',
+                  period: '/yr',
+                  popular: true,
+                  features: [
+                    'Access to AI detector',
+                    'AI deep scan',
+                    '500,000 words per input',
+                    'Unlimited AI detections',
+                    'Detailed misinformation reports + AI vs Human detection',
+                    'Fastest response times',
+                    'Priority support'
+                  ],
+                  buttonText: 'Upgrade',
+                  subscribePlan: 'Yearly'
+                }
+              ].map((plan) => (
+                <article
+                  key={plan.name}
+                  className={`flex min-h-[455px] flex-col rounded-2xl bg-white px-6 py-6 ${
+                    plan.popular
+                      ? 'border-2 border-[#1FA463]'
+                      : 'border border-stone-200 hover:border-stone-300'
+                  }`}
                 >
-                  Subscribe Weekly
-                </button>
-
-                <ul className="flex-1 space-y-4">
-                  {[
-                    "50 detections",
-                    "Human vs AI",
-                    "Basic misinformation",
-                    "Standard speed"
-                  ].map((feature, idx) => (
-                    <li key={idx} className="flex items-center gap-3 text-[13px] text-stone-500 font-medium">
-                      <div className="border-[1.5px] border-[#1FA463] rounded-full p-[1px] flex-shrink-0 bg-[#1FA463]/5">
-                        <Check size={10} strokeWidth={4.5} className="text-[#1FA463]" />
-                      </div>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Monthly Plan (Highlighted) */}
-              <div className="relative flex flex-col h-full bg-white rounded-3xl p-8 border-2 border-[#1FA463] shadow-[0_25px_60px_rgba(31,164,99,0.08)] pt-11 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_30px_70px_rgba(31,164,99,0.12)]">
-
-                {/* Most Popular Badge */}
-                <span className="absolute -top-[14px] left-1/2 -translate-x-1/2 px-4 py-[6px] bg-[#1FA463] text-white text-[10px] font-extrabold rounded-full uppercase tracking-wider whitespace-nowrap z-10 shadow-sm shadow-[#1FA463]/30">
-                  Most Popular
-                </span>
-
-                <div className="mb-6 text-left">
-                  <h3 className="text-[17px] font-bold text-stone-900 mb-1">Monthly Plan</h3>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-black text-stone-900 leading-none tracking-tight">$20</span>
-                    <span className="text-stone-400 font-medium text-[13px] ml-1">/month</span>
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-lg font-bold text-stone-950">{plan.name}</h2>
+                    {plan.badge && (
+                      <span className={`rounded-full border px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide ${plan.badgeClassName}`}>
+                        {plan.badge}
+                      </span>
+                    )}
                   </div>
-                </div>
 
-                <button
-                  onClick={() => handleSubscribe('Monthly')}
-                  className="w-full py-3 rounded-xl font-bold text-[13px] mb-8 transition-all duration-200 bg-[#1FA463] text-white hover:bg-[#178a52] shadow-md shadow-[#1FA463]/20 active:scale-98"
-                >
-                  Subscribe Monthly
-                </button>
-
-                <ul className="flex-1 space-y-4">
-                  {[
-                    "Unlimited detections",
-                    "Humanized AI detection",
-                    "Advanced misinformation",
-                    "Detailed reports",
-                    "Faster processing"
-                  ].map((feature, idx) => (
-                    <li key={idx} className="flex items-center gap-3 text-[13px] text-stone-500 font-medium">
-                      <div className="border-[1.5px] border-[#1FA463] rounded-full p-[1px] flex-shrink-0 bg-[#1FA463]/5">
-                        <Check size={10} strokeWidth={4.5} className="text-[#1FA463]" />
-                      </div>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Yearly Plan */}
-              <div className="relative flex flex-col h-full bg-white rounded-3xl p-8 border border-stone-200/60 shadow-[0_15px_40px_rgba(28,25,23,0.015)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_20px_50px_rgba(28,25,23,0.03)]">
-                <div className="mb-6 text-left">
-                  <h3 className="text-[17px] font-bold text-stone-900 mb-1">Yearly Plan</h3>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-black text-stone-900 leading-none tracking-tight">$250</span>
-                    <span className="text-stone-400 font-medium text-[13px] ml-1">/year</span>
+                  <div className="mt-5 flex items-end gap-1">
+                    <span className="text-4xl font-black leading-none tracking-normal text-stone-950">{plan.price}</span>
+                    {plan.period && (
+                      <span className="pb-1 text-sm font-bold text-stone-400">{plan.period}</span>
+                    )}
                   </div>
-                </div>
-                <button
-                  onClick={() => handleSubscribe('Yearly')}
-                  className="w-full py-3 rounded-xl font-bold text-[13px] mb-8 transition-all duration-200 bg-stone-100 text-stone-800 hover:bg-stone-200/80 active:scale-98"
-                >
-                  Subscribe Yearly
-                </button>
-                <ul className="flex-1 space-y-4">
-                  {[
-                    "Unlimited detection",
-                    "Advanced features",
-                    "Downloadable reports",
-                    "API access",
-                    "Priority support"
-                  ].map((feature, idx) => (
-                    <li key={idx} className="flex items-center gap-3 text-[13px] text-stone-500 font-medium">
-                      <div className="border-[1.5px] border-[#1FA463] rounded-full p-[1px] flex-shrink-0 bg-[#1FA463]/5">
-                        <Check size={10} strokeWidth={4.5} className="text-[#1FA463]" />
-                      </div>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
 
+                  <ul className="mt-6 flex flex-1 flex-col gap-3">
+                    {plan.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-3 text-sm font-medium leading-6 text-stone-600">
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1FA463]/10 text-[#1FA463]">
+                          <Check size={13} strokeWidth={3} />
+                        </span>
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <button
+                    type="button"
+                    disabled={plan.disabled}
+                    onClick={() => plan.subscribePlan && handleSubscribe(plan.subscribePlan)}
+                    className={`mt-6 h-11 rounded-xl px-5 text-sm font-bold ${
+                      plan.disabled
+                        ? 'cursor-not-allowed bg-stone-100 text-stone-400'
+                        : 'bg-stone-950 text-white hover:bg-[#1FA463]'
+                    }`}
+                  >
+                    {plan.buttonText}
+                  </button>
+                </article>
+              ))}
             </div>
           </div>
         )}
@@ -1260,7 +1251,6 @@ const Detector = () => {
             </div>
           </div>
         )}
-        {activeTab !== 'account' && <Footer className="!mt-16 md:!mt-24" />}
       </main>
 
       {/* ChatGPT / Claude style sliding Right History Sidebar Drawer */}

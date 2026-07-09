@@ -11,7 +11,6 @@ import {
   Redo, Type, Bold, Italic, Underline, MoreVertical, ChevronLeft, ChevronRight, 
   Lock, CheckCircle, Wallet, Landmark, Menu
 } from 'lucide-react';
-import Footer from '../components/Footer';
 import emailjs from '@emailjs/browser';
 
 const safeLocalStorage = {
@@ -441,9 +440,6 @@ export default function Home() {
       </main>
       
 
-      
-      {/* Footer / Emerging Bottom Container */}
-      <Footer className="!mt-16 md:!mt-24" />
     </div>
   );
 }

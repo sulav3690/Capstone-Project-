@@ -1,14 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import safeLocalStorage from '../utils/safeLocalStorage';
 
 export default function GoogleAuthModal({ isOpen, onClose, onLoginSuccess }) {
   const [loadingEmail, setLoadingEmail] = useState(null);
+  const loginTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (!isOpen) {
       setLoadingEmail(null);
     }
+
+    return () => {
+      if (loginTimeoutRef.current) {
+        clearTimeout(loginTimeoutRef.current);
+        loginTimeoutRef.current = null;
+      }
+    };
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -20,7 +28,9 @@ export default function GoogleAuthModal({ isOpen, onClose, onLoginSuccess }) {
 
   const handleAccountSelect = (account) => {
     setLoadingEmail(account.email);
-    setTimeout(() => {
+    if (loginTimeoutRef.current) clearTimeout(loginTimeoutRef.current);
+
+    loginTimeoutRef.current = setTimeout(() => {
       // Simulate OAuth success
       safeLocalStorage.setItem('veritas_display_name', account.name);
       safeLocalStorage.setItem('veritas_email', account.email);

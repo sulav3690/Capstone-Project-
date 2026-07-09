@@ -61,7 +61,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
   }, [pathname]);
 
   const handleNavClick = (tabId, route) => {
-    if (onTabChange && route === '/dashboard') {
+    if (onTabChange && route?.startsWith('/dashboard')) {
       // In-page tab switching for dashboard
       onTabChange(tabId);
     } else if (route) {
@@ -98,7 +98,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
   };
 
   const navButtonClass = (tabId, route) =>
-    `flex items-center gap-3 rounded-xl text-[15.5px] transition-all w-full text-left ${
+    `flex items-center gap-3 rounded-full text-[15.5px] transition-all w-full text-left ${
       isActive(tabId, route)
         ? 'bg-stone-900 text-white shadow-sm font-semibold'
         : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
@@ -137,7 +137,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
           </button>
 
           <button
-            onClick={() => handleNavClick('detector', '/dashboard')}
+            onClick={() => handleNavClick('detector', '/dashboard?tab=detector')}
             className={navButtonClass('detector', null)}
             title="AI Content Detector"
           >
@@ -151,8 +151,8 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
               <span className="text-xs font-bold text-stone-400/80 tracking-wider uppercase px-4 whitespace-nowrap">Account</span>
             )}
             <button
-              onClick={() => handleNavClick('account', '/dashboard')}
-              className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all text-left w-full ${
+              onClick={() => handleNavClick('account', '/dashboard?tab=account')}
+              className={`flex items-center gap-3 rounded-full text-[15.5px] transition-all text-left w-full ${
                 isActive('account', null)
                   ? 'bg-stone-900 text-white shadow-sm font-semibold'
                   : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
@@ -163,8 +163,8 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
               {!isCollapsed && <span className="truncate">Account</span>}
             </button>
             <button
-              onClick={() => handleNavClick('plans', '/dashboard')}
-              className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all text-left w-full ${
+              onClick={() => handleNavClick('plans', '/dashboard?tab=plans')}
+              className={`flex items-center gap-3 rounded-full text-[15.5px] transition-all text-left w-full ${
                 isActive('plans', null)
                   ? 'bg-stone-900 text-white shadow-sm font-semibold'
                   : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
@@ -182,9 +182,9 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
               <span className="text-xs font-bold text-stone-400/80 tracking-wider uppercase px-4 whitespace-nowrap">Help</span>
             )}
             <button
-              onClick={() => { router.push('/support'); setIsMobileOpen(false); }}
-              className={`flex items-center gap-3 rounded-xl text-[15.5px] transition-all text-left w-full ${
-                pathname === '/support'
+              onClick={() => { router.push('/faq'); setIsMobileOpen(false); }}
+              className={`flex items-center gap-3 rounded-full text-[15.5px] transition-all text-left w-full ${
+                pathname === '/faq'
                   ? 'bg-stone-900 text-white shadow-sm font-semibold'
                   : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
               } ${isCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'}`}
@@ -195,7 +195,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
             </button>
             <button
               onClick={() => { router.push('/support'); setIsMobileOpen(false); }}
-              className={`flex items-center gap-3 rounded-xl font-medium text-[15.5px] transition-all text-left w-full ${
+              className={`flex items-center gap-3 rounded-full font-medium text-[15.5px] transition-all text-left w-full ${
                 pathname === '/support'
                   ? 'bg-stone-900 text-white shadow-sm font-semibold'
                   : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50'
@@ -207,10 +207,10 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
             </button>
             <button
               onClick={() => { window.open('https://discord.gg/YwGVj2V5Qk', '_blank'); setIsMobileOpen(false); }}
-              className={`flex items-center gap-3 text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 rounded-xl font-medium text-[15.5px] transition-all text-left w-full ${
+              className={`flex items-center gap-3 text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 rounded-full font-medium text-[15.5px] transition-all text-left w-full ${
                 isCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
               }`}
-              title="Discord"
+            title="Discord"
             >
               <MessageSquare size={18} className="shrink-0" />
               {!isCollapsed && <span className="truncate">Discord</span>}
@@ -223,7 +223,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
       <div className={`p-4 border-t border-stone-200/60 flex flex-col gap-3 transition-all duration-300 ${isCollapsed ? 'items-center px-2' : ''}`}>
         {isCollapsed ? (
           <button
-            onClick={() => handleNavClick('account', '/dashboard')}
+            onClick={() => handleNavClick('account', '/dashboard?tab=account')}
             className="relative cursor-pointer hover:scale-105 transition-all w-10 h-10 rounded-full bg-gradient-to-br from-[#7755FF] to-[#4F33FF] flex items-center justify-center text-white font-bold text-[15px] shadow-sm border-none outline-none shrink-0"
             title={`${displayName} - ${subscriptionPlan} Plan`}
           >
@@ -234,7 +234,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
           <div className="w-full bg-[#EBE5D8]/80 backdrop-blur-[10px] border border-stone-300/60 shadow-[inset_4px_4px_12px_rgba(255,255,255,0.75),inset_-2px_-2px_6px_rgba(0,0,0,0.015),0_10px_25px_rgba(28,25,23,0.02)] p-4 rounded-2xl flex flex-col gap-3.5 text-stone-800 select-none">
             {/* Profile Details */}
             <div
-              onClick={() => handleNavClick('account', '/dashboard')}
+              onClick={() => handleNavClick('account', '/dashboard?tab=account')}
               className="flex items-center gap-3 cursor-pointer hover:opacity-90 transition text-left"
             >
               <div className="relative shrink-0">
@@ -272,7 +272,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
                 </button>
               ) : (
                 <button
-                  onClick={() => handleNavClick('plans', '/dashboard')}
+                  onClick={() => handleNavClick('plans', '/dashboard?tab=plans')}
                   className="w-full py-1.5 pl-1.5 pr-4 bg-[#1FA463]/5 hover:bg-[#1FA463]/10 border border-[#1FA463]/10 rounded-full flex items-center gap-2.5 transition-all cursor-pointer text-left shadow-sm"
                 >
                   <div className="w-6 h-6 rounded-full bg-[#1FA463] flex items-center justify-center shrink-0">
@@ -328,7 +328,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
             : 'hidden md:flex'
           }
           ${/* Desktop sticky */''} 
-          ${!isMobileOpen ? `h-screen sticky top-0 ${isSidebarCollapsed ? 'w-16' : 'w-64'}` : ''}
+          ${!isMobileOpen ? `h-screen sticky top-0 ${isSidebarCollapsed ? 'w-16' : 'w-72'}` : ''}
         `}
       >
         {/* Mobile Close Button */}
