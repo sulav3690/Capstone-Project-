@@ -74,3 +74,47 @@
   animation: fadeScaleIn 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
+/* Mobile Sidebar Overlay Animations */
+@keyframes slideInSidebar {
+  0% { transform: translateX(-100%); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-in-sidebar {
+  animation: slideInSidebar 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* Input Error Shake Animation */
+@keyframes inputShake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+.animate-input-shake {
+  animation: inputShake 0.4s ease-in-out;
+}
+
+/* Mobile Hamburger Menu Overlay */
+@keyframes slideDownMenu {
+  0% { opacity: 0; transform: translateY(-8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-down-menu {
+  animation: slideDownMenu 0.25s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+/* Password Strength Bar */
+@keyframes strengthGrow {
+  0% { width: 0%; }
+}
+.animate-strength-grow {
+  animation: strengthGrow 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
