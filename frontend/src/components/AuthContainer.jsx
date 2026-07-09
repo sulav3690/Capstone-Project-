@@ -9,31 +9,15 @@ import {
   AlertCircle, ShieldAlert, CheckCircle2
 } from 'lucide-react';
 import { useToast } from '../components/ToastProvider';
+import Footer from './Footer';
 import safeLocalStorage from '../utils/safeLocalStorage';
 import useFormValidation from '../hooks/useFormValidation';
 import GoogleAuthModal from './GoogleAuthModal';
-import ReCAPTCHA from 'react-google-recaptcha';
-
-const DEMO_SENTENCES = [
-  { text: "Research shows that regular physical activity boosts brain performance long-term.", type: "human", score: 98 },
-  { text: "Staying active strengthens memory and supports the brain's ability to grow.", type: "human", score: 97 },
-  { text: "It meaningfully lowers the chances of cognitive decline over the years.", type: "human", score: 97 },
-  { text: "The algorithm analyzed the textual context to predict factual accuracy.", type: "ai", score: 42, misinfo: true },
-  { text: "On top of that, even light workouts have been found to ease feelings of stress and low mood.", type: "human", score: 95 },
-  { text: "Experts suggest getting around two and a half hours of moderate cardio each week for the best results.", type: "human", score: 97 },
-];
 
 export default function AuthContainer({ mode }) {
   const router = useRouter();
   const { showToast } = useToast();
 
-  // Navigation Swapping state
-  const [isSwapping, setIsSwapping] = useState(false);
-
-  // Verification checkbox state
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [isVerified, setIsVerified] = useState(false);
-  
   // Google Auth state
   const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -41,6 +25,7 @@ export default function AuthContainer({ mode }) {
   // Form Validation Hooks
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+
 
   const loginForm = useFormValidation(
     { username: '', password: '' },
@@ -101,36 +86,87 @@ export default function AuthContainer({ mode }) {
     }
   }, [registerForm.values.password, mode]);
 
-  // Animated Showcase States
-  const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
-  const [displayedText, setDisplayedText] = useState("");
-  const [highlightedSentences, setHighlightedSentences] = useState([]);
-  const [currentScore, setCurrentScore] = useState(100);
-  const [currentStatus, setCurrentStatus] = useState("Scan Ready");
-  const [currentRisk, setCurrentRisk] = useState("Low");
+  
+  // Simple Math Captcha State
+  const [captchaNum1, setCaptchaNum1] = useState(0);
+  const [captchaNum2, setCaptchaNum2] = useState(0);
+  const [captchaAnswer, setCaptchaAnswer] = useState('');
 
-  // On mount, handle initial slide-in entry
+  const generateCaptcha = () => {
+    setCaptchaNum1(Math.floor(Math.random() * 9) + 1); // 1-9
+    setCaptchaNum2(Math.floor(Math.random() * 9) + 1); // 1-9
+    setCaptchaAnswer('');
+  };
+
+
   useEffect(() => {
-    setIsSwapping(false);
+    generateCaptcha();
   }, [mode]);
 
-  // Swapping route handler (illusion of smooth slides)
+  const loginForm = useFormValidation(
+    { username: '', password: '' },
+    (values) => {
+      const errors = {};
+      if (!values.username) errors.username = "Username is required";
+      if (!values.password) errors.password = "Password is required";
+      return errors;
+    }
+  );
+
+  const registerForm = useFormValidation(
+    { username: '', password: '', fullName: '', email: '', phone: '', countryCode: '+977', role: '' },
+    (values) => {
+      const errors = {};
+      if (!values.username || !/^[a-zA-Z0-9]+$/.test(values.username)) {
+        errors.username = "Username must be alphanumeric";
+      }
+      if (!values.password || !/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]|.*[^a-zA-Z0-9]).{8,}$/.test(values.password)) {
+        errors.password = "Min 8 chars, 1 uppercase, 1 lowercase, 1 number/symbol";
+      }
+      if (!values.fullName || !/^[a-zA-Z]+\s+[a-zA-Z\s]+$/.test(values.fullName)) {
+        errors.fullName = "Full Name must contain at least 2 words (letters only)";
+      }
+      if (!values.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
+        errors.email = "Valid email is required";
+      }
+      if (!values.phone || !/^[0-9]{10}$/.test(values.phone)) {
+        errors.phone = "Phone must be exactly 10 digits";
+      }
+      if (!values.role) errors.role = "Role is required";
+      return errors;
+    }
+  );
+
+  // Password Strength State
+  const [passwordStrength, setPasswordStrength] = useState(0);
+  const [passwordLabel, setPasswordLabel] = useState("");
+
+  // Calculate password strength whenever register password changes
+  useEffect(() => {
+    if (mode === 'register') {
+      const pwd = registerForm.values.password;
+      let strength = 0;
+      if (pwd.length > 5) strength += 25;
+      if (pwd.length >= 8) strength += 25;
+      if (/[A-Z]/.test(pwd)) strength += 25;
+      if (/[0-9]/.test(pwd) || /[^A-Za-z0-9]/.test(pwd)) strength += 25;
+      setPasswordStrength(strength);
+
+      if (strength >= 75 && /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]|.*[^a-zA-Z0-9]).{8,}$/.test(pwd)) {
+        setPasswordLabel("Strong");
+      } else if (strength > 0) {
+        setPasswordLabel("Weak");
+      } else {
+        setPasswordLabel("");
+      }
+    }
+  }, [registerForm.values.password, mode]);
+
+  // Route swapper (instant push, no lag)
   const handleSwap = (targetPath) => {
-    setIsSwapping(true);
-    setTimeout(() => {
-      router.push(targetPath);
-    }, 450); // Match CSS transition timing
+    router.push(targetPath);
   };
 
-  // reCAPTCHA handler
-  const handleRecaptchaChange = (value) => {
-    if (value) {
-      setIsVerified(true);
-    } else {
-      setIsVerified(false);
-    }
-  };
-  
   const handleGoogleSuccess = () => {
     setShowGoogleModal(false);
     showToast('Signed in with Google Successfully!', 'success');
@@ -152,12 +188,14 @@ export default function AuthContainer({ mode }) {
 
   // Login handler
   const handleLoginSubmit = async (values) => {
-    if (!isVerified) {
-      showToast("Please verify you are a human first.", "error");
+    const correctAns = captchaNum1 + captchaNum2;
+    if (parseInt(captchaAnswer) !== correctAns) {
+      showToast("Please solve the math verification puzzle correctly first.", "error");
+      generateCaptcha();
       return;
     }
     safeLocalStorage.removeItem('veritas_onboarding_completed');
-    safeLocalStorage.setItem('veritas_display_name', values.username || 'Sulav Sharma');
+    safeLocalStorage.setItem('veritas_display_name', values.username);
     showToast(`Welcome back! Logging in...`, "success");
     await new Promise(res => setTimeout(res, 800));
     router.push('/dashboard');
@@ -165,8 +203,10 @@ export default function AuthContainer({ mode }) {
 
   // Register handler
   const handleRegisterSubmit = async (values) => {
-    if (!isVerified) {
-      showToast("Please verify you are a human first.", "error");
+    const correctAns = captchaNum1 + captchaNum2;
+    if (parseInt(captchaAnswer) !== correctAns) {
+      showToast("Please solve the math verification puzzle correctly first.", "error");
+      generateCaptcha();
       return;
     }
     safeLocalStorage.setItem('veritas_display_name', values.fullName || values.username);
@@ -175,61 +215,6 @@ export default function AuthContainer({ mode }) {
     await new Promise(res => setTimeout(res, 800));
     handleSwap('/login');
   };
-
-  // Typing animation for StealthWriter Showcase
-  useEffect(() => {
-    let timer;
-    const sentence = DEMO_SENTENCES[currentSentenceIndex];
-    let charIndex = 0;
-
-    // Initial delay before typing next sentence
-    timer = setTimeout(() => {
-      const typeInterval = setInterval(() => {
-        if (charIndex < sentence.text.length) {
-          setDisplayedText((prev) => prev + sentence.text.charAt(charIndex));
-          charIndex++;
-        } else {
-          clearInterval(typeInterval);
-
-          // Update Score & Highlights
-          setTimeout(() => {
-            setHighlightedSentences((prev) => [
-              ...prev,
-              { text: sentence.text, type: sentence.type }
-            ]);
-            setDisplayedText("");
-            setCurrentScore(sentence.score);
-            setCurrentStatus(sentence.type === "human" ? "Looks Human" : "AI Content Detected");
-            setCurrentRisk(sentence.misinfo ? "High Risk" : "Low Risk");
-
-            // Advance index or loop back
-            setTimeout(() => {
-              if (currentSentenceIndex < DEMO_SENTENCES.length - 1) {
-                setCurrentSentenceIndex((prev) => prev + 1);
-              } else {
-                // Loop reset
-                setHighlightedSentences([]);
-                setCurrentSentenceIndex(0);
-                setCurrentScore(100);
-                setCurrentStatus("Scan Ready");
-                setCurrentRisk("Low");
-              }
-            }, 1800);
-          }, 400);
-        }
-      }, 30); // Typing speed
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [currentSentenceIndex]);
-
-  const showcaseAnimClass = mode === 'login'
-    ? (isSwapping ? 'lg:animate-slide-out-right' : 'lg:animate-slide-in-right')
-    : (isSwapping ? 'lg:animate-slide-out-left' : 'lg:animate-slide-in-left');
-
-  const formAnimClass = mode === 'login'
-    ? (isSwapping ? 'lg:animate-slide-out-left' : 'lg:animate-slide-in-left')
-    : (isSwapping ? 'lg:animate-slide-out-right' : 'lg:animate-slide-in-right');
 
   return (
     <div className="min-h-screen w-full bg-[#FDFBF7] flex flex-col font-sans select-none relative overflow-x-hidden">
@@ -280,7 +265,7 @@ export default function AuthContainer({ mode }) {
         <div className="flex flex-col p-6 gap-6">
           <nav className="flex flex-col gap-4">
             <Link href="/subscription" onClick={() => setMobileMenuOpen(false)} className="text-[16px] font-bold text-stone-800">Pricing</Link>
-            <Link href="/faq" onClick={() => setMobileMenuOpen(false)} className="text-[16px] font-bold text-stone-800">FAQ</Link>
+            <Link href="/#faq" onClick={() => setMobileMenuOpen(false)} className="text-[16px] font-bold text-stone-800">FAQ</Link>
           </nav>
           <div className="flex flex-col gap-3 pt-4 border-t border-stone-100">
             <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="w-full py-3 text-center text-[15px] font-bold text-stone-700 bg-stone-100 rounded-xl">
@@ -295,155 +280,54 @@ export default function AuthContainer({ mode }) {
 
       {/* Main Content (Centered Card) */}
       <main className="flex-1 w-full flex items-center justify-center pt-28 pb-16 px-4 sm:px-6 relative z-10">
-        <div className="w-full max-w-[1100px] bg-white border border-stone-200/50 rounded-[32px] shadow-[0_25px_60px_rgba(28,25,23,0.03)] overflow-hidden min-h-[640px] flex flex-col lg:flex-row relative">
-          
-          {/* 50/50 Sliding Container */}
-          <div 
-            className={`w-full flex flex-col lg:flex-row transition-all duration-500 ease-in-out ${
-              isSwapping 
-                ? 'opacity-30 scale-[0.98]' 
-                : 'opacity-100 scale-100'
-            } ${
-              mode === 'register' ? 'lg:flex-row-reverse' : 'lg:flex-row'
-            }`}
-          >
+        <div className="w-full max-w-[1100px] bg-white border border-stone-200/50 rounded-[32px] shadow-[0_25px_60px_rgba(28,25,23,0.03)] overflow-hidden min-h-[640px] flex flex-col lg:flex-row">
+          <div className="w-full flex flex-col lg:flex-row relative">
             
-            {/* ==================== 1. DYNAMIC SHOWCASE SIDE (DARK PANEL) ==================== */}
-            <div className={`hidden lg:flex flex-1 bg-[#090D16] text-[#F8FAFC] relative flex-col items-center justify-center p-12 overflow-hidden select-none transition-all duration-500 ${showcaseAnimClass}`}>
+            {/* ==================== 1. BRANDING & QUOTE SIDE (DEEP BLUE PANEL) ==================== */}
+            <div className="hidden lg:flex flex-1 bg-[#090D16] text-[#F8FAFC] relative flex-col items-center justify-between p-12 select-none">
               
-              {/* Neon gradient background details */}
-              <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-[#1FA463]/10 to-transparent rounded-full blur-[100px] pointer-events-none" />
-              <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-to-tr from-[#7B82FF]/10 to-transparent rounded-full blur-[100px] pointer-events-none" />
+              {/* Radial gradient details */}
+              <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-[#7B82FF]/10 to-transparent rounded-full blur-[100px] pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-to-tr from-[#1FA463]/5 to-transparent rounded-full blur-[100px] pointer-events-none" />
 
-              <div className="relative z-10 w-full max-w-[500px] flex flex-col gap-8">
+              {/* Top spacer */}
+              <div className="h-4"></div>
+
+              {/* Main Branding Section */}
+              <div className="relative z-10 w-full max-w-[450px] flex flex-col items-center text-center gap-6">
                 
-                {/* Tagline */}
-                <div className="self-start bg-[#1FA463]/10 border border-[#1FA463]/25 text-[#1FA463] text-[11px] font-extrabold px-4 py-1.5 rounded-full flex items-center gap-1.5 tracking-wider uppercase select-none shadow-sm">
-                  <Sparkles size={13} className="animate-pulse" />
-                  Dynamic Content Analysis
+                <span className="text-stone-400 text-xs font-bold tracking-widest uppercase">
+                  Welcome to
+                </span>
+
+                {/* Circular Brand Icon */}
+                <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center shadow-[0_12px_40px_rgba(255,255,255,0.08)] shrink-0">
+                  <ShieldCheck size={48} className="text-[#7B82FF]" />
                 </div>
 
-                {/* Simulated Live Scan Screen (StealthWriter Style) */}
-                <div className="bg-[#121824]/90 border border-stone-800/80 rounded-[28px] p-6 shadow-2xl flex flex-col gap-6 backdrop-blur-sm">
-                  
-                  {/* Header block */}
-                  <div className="flex justify-between items-center border-b border-stone-800/60 pb-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-                    </div>
-                    <span className="text-stone-500 text-xs font-bold font-mono tracking-widest uppercase">Deep Scan v2.5</span>
-                  </div>
+                {/* Company Name */}
+                <h2 className="text-3xl font-extrabold text-white tracking-tight">
+                  VeritasAI
+                </h2>
 
-                  {/* Text Scanning Window */}
-                  <div className="min-h-[160px] text-left text-[14.5px] leading-relaxed select-none font-medium flex flex-col justify-start gap-3.5">
-                    
-                    {/* Log of scanned/highlighted sentences */}
-                    <div className="flex flex-wrap gap-x-1.5 gap-y-2">
-                      {highlightedSentences.map((h, i) => (
-                        <span 
-                          key={i} 
-                          className={`px-1 rounded-md transition-all duration-300 ${
-                            h.type === 'human' 
-                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 underline decoration-emerald-500/40 decoration-dotted underline-offset-4' 
-                              : 'bg-red-500/10 text-red-400 border border-red-500/20 underline decoration-red-500/40 decoration-solid underline-offset-4'
-                          }`}
-                        >
-                          {h.text}
-                        </span>
-                      ))}
-                      
-                      {/* Current typing sentence */}
-                      {displayedText && (
-                        <span className="text-stone-300 font-normal">
-                          {displayedText}
-                          <span className="w-1.5 h-4 bg-emerald-400 inline-block animate-pulse ml-0.5" />
-                        </span>
-                      )}
-                    </div>
+                {/* Branding Quote */}
+                <p className="text-stone-300 font-medium text-sm leading-relaxed max-w-sm mt-2">
+                  Unlock deep content analysis, semantic verification, and write with confidence. Join our workspace to verify facts and filter misinformation in real-time.
+                </p>
+              </div>
 
-                    {!displayedText && highlightedSentences.length === 0 && (
-                      <div className="text-stone-500 text-xs italic">Initializing text editor simulator...</div>
-                    )}
-                  </div>
-
-                  {/* Status & Gauge Block */}
-                  <div className="grid grid-cols-2 gap-4 border-t border-stone-800/60 pt-5 items-center">
-                    
-                    {/* Concentric Circle Gauge (No overlap/displacement border bug) */}
-                    <div className="flex items-center gap-4 text-left">
-                      <div className="w-16 h-16 rounded-full flex items-center justify-center relative shadow-sm shrink-0 bg-transparent">
-                        <span className={`text-[15px] font-black tracking-tight z-10 ${
-                          currentScore > 70 ? 'text-[#1FA463]' : 'text-red-400'
-                        }`}>
-                          {currentScore}%
-                        </span>
-                        {/* SVG circular concentric track and progress indicator */}
-                        <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 64 64">
-                          <circle 
-                            cx="32" 
-                            cy="32" 
-                            r="26" 
-                            fill="none" 
-                            stroke="#1F2937" 
-                            strokeWidth="6"
-                          />
-                          <circle 
-                            cx="32" 
-                            cy="32" 
-                            r="26" 
-                            fill="none" 
-                            stroke={currentScore > 70 ? '#1FA463' : '#F87171'} 
-                            strokeWidth="6"
-                            strokeDasharray="163.36"
-                            strokeDashoffset={163.36 - (163.36 * currentScore) / 100}
-                            className="transition-all duration-1000 ease-out"
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                      </div>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-[10px] font-extrabold text-stone-500 uppercase tracking-widest">Score</span>
-                        <span className={`text-[13px] font-extrabold truncate uppercase ${
-                          currentScore > 70 ? 'text-[#1FA463]' : 'text-red-400'
-                        }`}>
-                          {currentStatus}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Risk Indicator */}
-                    <div className="bg-[#182030] rounded-2xl p-3 border border-stone-800/40 text-left flex items-center gap-3">
-                      <div className={`p-2 rounded-xl shrink-0 ${
-                        currentRisk === 'Low Risk' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-                      }`}>
-                        {currentRisk === 'Low Risk' ? <ShieldCheck size={18} /> : <ShieldAlert size={18} />}
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-[9px] font-extrabold text-stone-500 uppercase tracking-widest">Misinfo Risk</span>
-                        <span className="text-[13px] font-bold text-stone-200 truncate">{currentRisk}</span>
-                      </div>
-                    </div>
-
-                  </div>
-
-                </div>
-
-                {/* Bottom text explanation */}
-                <div className="text-left flex flex-col gap-1.5 px-2">
-                  <h3 className="text-lg font-bold text-stone-100 tracking-tight">AI Content &amp; Factual Verifier</h3>
-                  <p className="text-stone-400 text-xs leading-relaxed">
-                    VeritasAI runs semantic highlights and lexical entropy scoring in real-time, verifying structural consistency and flags unverified clickbait.
-                  </p>
-                </div>
-
+              {/* Bottom Quote footer links */}
+              <div className="relative z-10 w-full text-center">
+                <div className="w-12 h-[1px] bg-stone-700/60 mx-auto mb-4"></div>
+                <span className="text-stone-500 text-[10px] tracking-widest font-extrabold uppercase">
+                  Verify Content &nbsp;|&nbsp; Discover Truth
+                </span>
               </div>
 
             </div>
 
-            {/* ==================== 2. FORM SIDE (LIGHT PANEL - NO NESTED FLOATING CARD) ==================== */}
-            <div className={`flex-1 flex items-center justify-center p-6 sm:p-12 transition-all duration-500 ${formAnimClass}`}>
+            {/* ==================== 2. FORM SIDE (LIGHT PANEL) ==================== */}
+            <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
               
               <div className="w-full max-w-md flex flex-col gap-6 relative">
                 
@@ -515,20 +399,32 @@ export default function AuthContainer({ mode }) {
                       </div>
                     </div>
 
-                    {/* Human Verify Widget (reCAPTCHA) */}
-                    <div className="flex justify-center mt-2 w-full" style={{ transform: 'scale(0.85)', transformOrigin: 'center top' }}>
-                      <ReCAPTCHA
-                        sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
-                        onChange={handleRecaptchaChange}
-                      />
+                    {/* Math verification captcha */}
+                    <div className="flex flex-col gap-1.5 mt-2 bg-stone-50/50 border border-stone-200/60 rounded-xl p-3 text-left">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[11px] font-extrabold text-stone-500 uppercase tracking-wider">Are you a robot?</label>
+                        <button type="button" onClick={generateCaptcha} className="text-[10px] font-bold text-[#7B82FF] hover:underline bg-transparent border-0 cursor-pointer">Reload</button>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[13px] font-mono font-bold text-stone-700 bg-stone-100 border border-stone-200/50 px-3 py-1.5 rounded-lg select-none">
+                          {captchaNum1} &nbsp;+&nbsp; {captchaNum2} &nbsp;=
+                        </span>
+                        <input
+                          type="text"
+                          placeholder="Your answer"
+                          value={captchaAnswer}
+                          onChange={(e) => setCaptchaAnswer(e.target.value)}
+                          className="flex-1 min-w-0 px-3 py-1.5 rounded-lg border border-stone-200/80 bg-white text-stone-800 focus:outline-none focus:border-[#1FA463] text-[13px] font-bold text-center"
+                        />
+                      </div>
                     </div>
 
                     {/* Submit Action */}
                     <button
                       type="submit"
-                      disabled={!isVerified}
+                      disabled={!captchaAnswer}
                       className={`w-full py-3 rounded-xl text-[14px] font-extrabold transition-all duration-300 shadow-md flex items-center justify-center gap-2 select-none border-0 ${
-                        isVerified 
+                        captchaAnswer 
                           ? 'bg-[#1FA463] hover:bg-[#178a52] text-white hover:shadow-lg hover:-translate-y-0.5 active:scale-98 active:translate-y-0 cursor-pointer' 
                           : 'bg-stone-100 text-stone-400 border border-stone-200/40 cursor-not-allowed shadow-none'
                       }`}
@@ -655,20 +551,32 @@ export default function AuthContainer({ mode }) {
                       </div>
                     </div>
 
-                    {/* Human Verify Widget (reCAPTCHA) */}
-                    <div className="flex justify-center mt-2 w-full" style={{ transform: 'scale(0.85)', transformOrigin: 'center top' }}>
-                      <ReCAPTCHA
-                        sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
-                        onChange={handleRecaptchaChange}
-                      />
+                    {/* Math verification captcha */}
+                    <div className="flex flex-col gap-1.5 mt-2 bg-stone-50/50 border border-stone-200/60 rounded-xl p-3 text-left">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[11px] font-extrabold text-stone-500 uppercase tracking-wider">Are you a robot?</label>
+                        <button type="button" onClick={generateCaptcha} className="text-[10px] font-bold text-[#7B82FF] hover:underline bg-transparent border-0 cursor-pointer">Reload</button>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[13px] font-mono font-bold text-stone-700 bg-stone-100 border border-stone-200/50 px-3 py-1.5 rounded-lg select-none">
+                          {captchaNum1} &nbsp;+&nbsp; {captchaNum2} &nbsp;=
+                        </span>
+                        <input
+                          type="text"
+                          placeholder="Your answer"
+                          value={captchaAnswer}
+                          onChange={(e) => setCaptchaAnswer(e.target.value)}
+                          className="flex-1 min-w-0 px-3 py-1.5 rounded-lg border border-stone-200/80 bg-white text-stone-800 focus:outline-none focus:border-[#1FA463] text-[13px] font-bold text-center"
+                        />
+                      </div>
                     </div>
 
                     {/* Submit Action */}
                     <button
                       type="submit"
-                      disabled={!isVerified}
+                      disabled={!captchaAnswer}
                       className={`w-full py-3 rounded-xl text-[14px] font-extrabold transition-all duration-300 shadow-md flex items-center justify-center gap-2 select-none border-0 ${
-                        isVerified 
+                        captchaAnswer 
                           ? 'bg-[#1FA463] hover:bg-[#178a52] text-white hover:shadow-lg hover:-translate-y-0.5 active:scale-98 active:translate-y-0 cursor-pointer' 
                           : 'bg-stone-100 text-stone-400 border border-stone-200/40 cursor-not-allowed shadow-none'
                       }`}
@@ -715,6 +623,9 @@ export default function AuthContainer({ mode }) {
           </div>
         </div>
       </main>
+
+      {/* Website Footer */}
+      <Footer className="w-full !mt-0 !rounded-b-none" />
 
       {/* Google Auth Modal Overlay */}
       <GoogleAuthModal 

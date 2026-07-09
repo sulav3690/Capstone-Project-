@@ -6,6 +6,7 @@ import {
   ShieldCheck, 
   ArrowRight, 
   Check, 
+  Sparkles, 
   GraduationCap, 
   Presentation, 
   Briefcase, 

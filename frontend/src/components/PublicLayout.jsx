@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Menu, ShieldCheck, X } from 'lucide-react';
+import { ShieldCheck, Facebook, Linkedin, Twitter, ArrowLeft, Menu, X } from 'lucide-react';
 
 export default function PublicLayout({ children }) {
   const [showHeader, setShowHeader] = useState(true);
@@ -60,14 +60,15 @@ export default function PublicLayout({ children }) {
           <Link href="/login" className="hidden md:block text-[14px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide">
             Login
           </Link>
-          <Link
-            href="/dashboard"
+          <Link 
+            href="/dashboard" 
             className="hidden md:flex bg-[#7B82FF] hover:bg-[#6870fa] text-white text-[14px] font-semibold py-2 px-5 rounded-full shadow-sm hover:shadow transition-all duration-200 hover:-translate-y-[1px] active:translate-y-0"
           >
             Dashboard
           </Link>
 
-          <button
+          {/* Mobile Menu Toggle */}
+          <button 
             className="md:hidden p-2 -mr-2 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
@@ -76,7 +77,8 @@ export default function PublicLayout({ children }) {
         </div>
       </header>
 
-      <div
+      {/* Mobile Navigation Dropdown */}
+      <div 
         className={`fixed inset-x-0 top-[72px] bg-white border-b border-stone-200/50 shadow-xl transition-all duration-300 ease-in-out z-40 md:hidden overflow-hidden ${
           mobileMenuOpen ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
         }`}

@@ -22,8 +22,8 @@ export default function GoogleAuthModal({ isOpen, onClose, onLoginSuccess }) {
   if (!isOpen) return null;
 
   const accounts = [
-    { name: 'Demo User', email: 'demo.user@example.com', avatar: 'D' },
-    { name: 'Jane Doe', email: 'jane.doe@example.com', avatar: 'J' },
+    { name: "Sulav Sharma", email: "sulav2080-0306@iimscollege.edu.np", avatar: "S" },
+    { name: "John Doe", email: "john.doe@example.com", avatar: "J" },
   ];
 
   const handleAccountSelect = (account) => {
