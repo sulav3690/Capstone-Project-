@@ -4,7 +4,7 @@
  * Analyzes linguistic patterns to estimate AI vs human authorship.
  */
 export function analyzeText(text) {
-  const words = text.trim().split(/\s+/);
+  const words = text.trim().split(/\s+/).filter(Boolean);
   const wordCount = words.length;
   const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0);
 
