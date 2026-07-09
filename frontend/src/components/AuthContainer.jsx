@@ -27,66 +27,7 @@ export default function AuthContainer({ mode }) {
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
 
 
-  const loginForm = useFormValidation(
-    { username: '', password: '' },
-    (values) => {
-      const errors = {};
-      if (!values.username) errors.username = "Username is required";
-      if (!values.password) errors.password = "Password is required";
-      return errors;
-    }
-  );
 
-  const registerForm = useFormValidation(
-    { username: '', password: '', fullName: '', email: '', phone: '', countryCode: '+977', role: '' },
-    (values) => {
-      const errors = {};
-      if (!values.username || !/^[a-zA-Z0-9]+$/.test(values.username)) {
-        errors.username = "Username must be alphanumeric";
-      }
-      if (!values.password || !/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]|.*[^a-zA-Z0-9]).{8,}$/.test(values.password)) {
-        errors.password = "Min 8 chars, 1 uppercase, 1 lowercase, 1 number/symbol";
-      }
-      if (!values.fullName || !/^[a-zA-Z]+\s+[a-zA-Z\s]+$/.test(values.fullName)) {
-        errors.fullName = "Full Name must contain at least 2 words (letters only)";
-      }
-      if (!values.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
-        errors.email = "Valid email is required";
-      }
-      if (!values.phone || !/^[0-9]{10}$/.test(values.phone)) {
-        errors.phone = "Phone must be exactly 10 digits";
-      }
-      if (!values.role) errors.role = "Role is required";
-      return errors;
-    }
-  );
-
-  // Password Strength State
-  const [passwordStrength, setPasswordStrength] = useState(0);
-  const [passwordLabel, setPasswordLabel] = useState("");
-
-  // Calculate password strength whenever register password changes
-  useEffect(() => {
-    if (mode === 'register') {
-      const pwd = registerForm.values.password;
-      let strength = 0;
-      if (pwd.length > 5) strength += 25;
-      if (pwd.length >= 8) strength += 25;
-      if (/[A-Z]/.test(pwd)) strength += 25;
-      if (/[0-9]/.test(pwd) || /[^A-Za-z0-9]/.test(pwd)) strength += 25;
-      setPasswordStrength(strength);
-
-      if (strength >= 75 && /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]|.*[^a-zA-Z0-9]).{8,}$/.test(pwd)) {
-        setPasswordLabel("Strong");
-      } else if (strength > 0) {
-        setPasswordLabel("Weak");
-      } else {
-        setPasswordLabel("");
-      }
-    }
-  }, [registerForm.values.password, mode]);
-
-  
   // Simple Math Captcha State
   const [captchaNum1, setCaptchaNum1] = useState(0);
   const [captchaNum2, setCaptchaNum2] = useState(0);
@@ -215,6 +156,11 @@ export default function AuthContainer({ mode }) {
     await new Promise(res => setTimeout(res, 800));
     handleSwap('/login');
   };
+
+  // Static showcase values for mobile mini banner
+  const currentScore = 94;
+  const currentStatus = 'Authentic';
+  const currentRisk = 'Low Risk';
 
   return (
     <div className="min-h-screen w-full bg-[#FDFBF7] flex flex-col font-sans select-none relative overflow-x-hidden">
