@@ -1,14 +1,9 @@
-// This file runs before Next.js initializes, on the server side only.
-// It fixes the Node.js v22+ built-in localStorage issue where the global
-// localStorage object exists but its methods are broken/non-functional.
-
+/**
+ * Next.js server-runtime fallback for Node versions that expose a partial
+ * localStorage global. The process preload handles normal startup; this keeps
+ * worker runtimes safe as well.
+ */
 export async function register() {
-  if (typeof window === 'undefined') {
-    // We're on the server - delete the broken Node.js built-in localStorage
-    // Node.js v22+ exposes a localStorage global that requires --localstorage-file
-    // to function properly. Without it, localStorage.getItem throws TypeError.
-    if (typeof globalThis.localStorage !== 'undefined') {
-      delete globalThis.localStorage;
-    }
-  }
+  if (typeof window !== 'undefined' || !('localStorage' in globalThis)) return;
+  delete globalThis.localStorage;
 }

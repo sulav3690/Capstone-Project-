@@ -13,34 +13,12 @@ import {
   Building, 
   Mail 
 } from 'lucide-react';
-
-const safeLocalStorage = {
-  getItem: (key) => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        return window.localStorage.getItem(key);
-      }
-    } catch (e) { /* SSR or restricted environment */ }
-    return null;
-  },
-  setItem: (key, value) => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.setItem(key, value);
-      }
-    } catch (e) { /* SSR or restricted environment */ }
-  },
-  removeItem: (key) => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.removeItem(key);
-      }
-    } catch (e) { /* SSR or restricted environment */ }
-  }
-};
+import api from '../../utils/api';
+import { useToast } from '../../components/ToastProvider';
 
 export default function SurveyPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [onboardingStep, setOnboardingStep] = useState(1);
   const [onboardingData, setOnboardingData] = useState({
     role: '',
@@ -50,19 +28,37 @@ export default function SurveyPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isCheckingAccount, setIsCheckingAccount] = useState(true);
 
-  // Load existing data if available
+  // The database is authoritative: completed users never repeat onboarding.
   useEffect(() => {
-    const completed = safeLocalStorage.getItem('veritas_onboarding_completed');
-    if (completed && completed !== 'skipped') {
+    let isActive = true;
+
+    const checkAccount = async () => {
       try {
-        const data = JSON.parse(completed);
-        setOnboardingData(data);
-      } catch (e) {
-        // ignore
+        const res = await api.get('/api/auth/me/');
+        if (!isActive) return;
+
+        if (res.user?.onboarding_completed !== false) {
+          router.replace('/dashboard');
+          return;
+        }
+
+        setOnboardingData((current) => ({
+          ...current,
+          email: res.user?.email || current.email,
+        }));
+        setIsCheckingAccount(false);
+      } catch {
+        if (isActive) router.replace('/login');
       }
-    }
-  }, []);
+    };
+
+    checkAccount();
+    return () => {
+      isActive = false;
+    };
+  }, [router]);
 
   const handleRoleSelect = (role) => {
     setOnboardingData(prev => ({ ...prev, role }));
@@ -81,7 +77,7 @@ export default function SurveyPage() {
     }, 300);
   };
 
-  const handleSubmitSurvey = (planChoice) => {
+  const handleSubmitSurvey = async (planChoice) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     
@@ -91,21 +87,31 @@ export default function SurveyPage() {
       completedAt: new Date().toISOString()
     };
 
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      await api.post('/api/auth/onboarding-survey/', {
+        role: finalData.role,
+        email: finalData.email,
+        heard_about_us: finalData.heardAboutUs,
+        purpose: finalData.purpose,
+        plan_chosen: finalData.planChosen,
+        completed_at: finalData.completedAt
+      });
       setIsSuccess(true);
-      safeLocalStorage.setItem('veritas_onboarding_completed', JSON.stringify(finalData));
-      
+
       setTimeout(() => {
         if (planChoice === 'Premium') {
-          router.push('/payment?planName=Monthly%20Plan&planPrice=Rs.%20250');
+          router.push('/payment?plan=monthly');
         } else if (planChoice === 'Yearly') {
-          router.push('/payment?planName=Yearly%20Plan&planPrice=Rs.%202500');
+          router.push('/payment?plan=yearly');
         } else {
           router.push('/dashboard');
         }
-      }, 1000);
-    }, 800);
+      }, 800);
+    } catch (err) {
+      showToast(err.message || 'Could not save your onboarding choices.', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Define Why/Purpose options dynamically based on selected role
@@ -174,6 +180,10 @@ export default function SurveyPage() {
   ];
 
   const currentStepInfo = steps[onboardingStep - 1] || { title: "", subtitle: "", dots: [] };
+
+  if (isCheckingAccount) {
+    return <div className="min-h-screen bg-[#FDFBF7]" />;
+  }
 
   return (
     <div className="min-h-screen w-full flex flex-col md:flex-row bg-[#FDFBF7] text-[#1C1917] font-sans relative overflow-hidden">
@@ -250,7 +260,7 @@ export default function SurveyPage() {
               {/* STEP 1: ROLE SELECTION */}
               {onboardingStep === 1 && (
                 <div className="w-full flex flex-col items-center gap-4 animate-slideUp">
-                  <div className="grid grid-cols-2 gap-4 w-full">
+                  <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-4 w-full">
                     
                     {/* Student Card */}
                     <button
@@ -428,8 +438,8 @@ export default function SurveyPage() {
                           'Basic misinformation detection',
                           'Standard response times'
                         ],
-                        buttonText: 'Current Plan',
-                        planChoice: 'Basic',
+                        buttonText: 'Continue with Free',
+                        planChoice: 'Free',
                         disabledStyle: true
                       },
                       {

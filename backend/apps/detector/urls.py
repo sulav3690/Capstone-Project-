@@ -1,5 +1,5 @@
 from django.urls import path
-from apps.detector.views import (
+from .views import (
     AnalyzeView,
     JobStatusView,
     AnalysisHistoryView,

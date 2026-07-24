@@ -4,24 +4,24 @@ import React, { useState, useEffect } from 'react';
 import PublicLayout from '../../components/PublicLayout';
 import { Shield, Lock, Eye, CloudLightning, FileText, CheckCircle } from 'lucide-react';
 
+const SECTIONS = [
+  { id: 'introduction', label: 'Introduction' },
+  { id: 'information-we-collect', label: '1. Information We Collect' },
+  { id: 'how-we-use-information', label: '2. How We Use Information' },
+  { id: 'ai-processing-privacy', label: '3. AI Processing & Document Privacy' },
+  { id: 'data-security', label: '4. Data Security & Storage' },
+  { id: 'your-rights', label: '5. Your Privacy Rights' },
+  { id: 'contact-us', label: '6. Contact Privacy Team' },
+];
+
 export default function PrivacyPolicy() {
   const [activeSection, setActiveSection] = useState('introduction');
-
-  const sections = [
-    { id: 'introduction', label: 'Introduction' },
-    { id: 'information-we-collect', label: '1. Information We Collect' },
-    { id: 'how-we-use-information', label: '2. How We Use Information' },
-    { id: 'ai-processing-privacy', label: '3. AI Processing & Document Privacy' },
-    { id: 'data-security', label: '4. Data Security & Storage' },
-    { id: 'your-rights', label: '5. Your Privacy Rights' },
-    { id: 'contact-us', label: '6. Contact Privacy Team' },
-  ];
 
   useEffect(() => {
     const handleScroll = () => {
       const scrollPosition = window.scrollY + 200;
 
-      for (const section of sections) {
+      for (const section of SECTIONS) {
         const element = document.getElementById(section.id);
         if (element) {
           const offsetTop = element.offsetTop;
@@ -34,7 +34,7 @@ export default function PrivacyPolicy() {
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -50,7 +50,7 @@ export default function PrivacyPolicy() {
 
   return (
     <PublicLayout>
-      <div className="max-w-6xl mx-auto px-6 py-12 md:py-16">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-16">
         
         {/* Page Title & Intro */}
         <div className="mb-14 text-center md:text-left">
@@ -74,7 +74,7 @@ export default function PrivacyPolicy() {
               Table of Contents
             </h3>
             <nav className="flex flex-col gap-1.5">
-              {sections.map((section) => (
+              {SECTIONS.map((section) => (
                 <button
                   key={section.id}
                   onClick={() => scrollToSection(section.id)}
@@ -104,9 +104,9 @@ export default function PrivacyPolicy() {
               <div className="p-5 rounded-2xl bg-amber-50/50 border border-amber-200/40 text-amber-900 flex items-start gap-4 mt-2">
                 <span className="text-2xl">💡</span>
                 <div>
-                  <h4 className="font-bold text-[15px]">Core Principle: We do not store your documents.</h4>
+                  <h4 className="font-bold text-[15px]">Core Principle: Your scan history stays private.</h4>
                   <p className="text-sm mt-1 font-medium text-amber-800/90 leading-relaxed">
-                    Any text you copy and paste into our detector is evaluated instantly in volatile memory and immediately discarded. We never use your texts to train our machine learning models.
+                    Text submitted by a signed-in user is saved to that user&apos;s private scan history so results can be revisited. Saved scans can be deleted from the history drawer and are not used to train machine-learning models.
                   </p>
                 </div>
               </div>
@@ -124,10 +124,10 @@ export default function PrivacyPolicy() {
                   <span className="text-stone-800 font-bold">Account Information:</span> Email addresses, passwords, and name inputs provided during registration.
                 </li>
                 <li>
-                  <span className="text-stone-800 font-bold">Billing Information:</span> Transaction records when you purchase a subscription plan. We use secure third-party processors (e.g. Stripe) and never store card numbers.
+                  <span className="text-stone-800 font-bold">Scan History:</span> Submitted text, analysis scores, and timestamps associated with your account until you delete them.
                 </li>
                 <li>
-                  <span className="text-stone-800 font-bold">Usage Metadata:</span> Standard analytical data (IP addresses, browser type, referral URLs) to improve platform load speed and prevent system abuses.
+                  <span className="text-stone-800 font-bold">Service Requests:</span> Support messages, onboarding answers, and feedback you intentionally submit.
                 </li>
               </ul>
             </section>

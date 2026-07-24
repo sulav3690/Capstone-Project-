@@ -12,8 +12,29 @@
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+    text-size-adjust: 100%;
+  }
+
   body {
     @apply bg-bg-grey text-gray-800 font-sans;
+    min-width: 320px;
+    overflow-x: hidden;
+    text-rendering: optimizeLegibility;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+
+  :focus-visible {
+    outline: 3px solid color-mix(in srgb, #7755ff 45%, transparent);
+    outline-offset: 2px;
   }
 }
 
@@ -118,3 +139,17 @@
   animation: strengthGrow 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

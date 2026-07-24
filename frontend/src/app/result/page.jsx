@@ -5,93 +5,8 @@ import { useRouter } from 'next/navigation';
 import Layout from '../../components/Layout';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-
-const safeLocalStorage = {
-  getItem: (key) => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        return window.localStorage.getItem(key);
-      }
-    } catch (e) { /* SSR or restricted environment */ }
-    return null;
-  },
-  setItem: (key, value) => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.setItem(key, value);
-      }
-    } catch (e) { /* SSR or restricted environment */ }
-  },
-  removeItem: (key) => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.removeItem(key);
-      }
-    } catch (e) { /* SSR or restricted environment */ }
-  }
-};
-
-// ─── Simulated Analysis Engine ────────────────────────────────────────────────
-// Produces realistic, text-dependent scores without a backend
-function analyzeText(text) {
-  const words = text.trim().split(/\s+/);
-  const wordCount = words.length;
-  const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0);
-
-  // Avg words per sentence (AI tends to be consistent: ~18-22)
-  const avgWordsPerSentence = wordCount / Math.max(sentences.length, 1);
-
-  // Vocabulary richness: unique / total words
-  const uniqueWords = new Set(words.map((w) => w.toLowerCase().replace(/\W/g, '')));
-  const lexicalDiversity = uniqueWords.size / Math.max(wordCount, 1);
-
-  // Repetition score: how many words repeat >3 times
-  const freq = {};
-  words.forEach((w) => {
-    const wl = w.toLowerCase().replace(/\W/g, '');
-    freq[wl] = (freq[wl] || 0) + 1;
-  });
-  const repeatedWords = Object.values(freq).filter((c) => c > 3).length;
-  const repetitionRatio = repeatedWords / Math.max(uniqueWords.size, 1);
-
-  // AI probability signal: uniform sentence length + low lexical diversity + repetition
-  let aiSignal = 0;
-  if (avgWordsPerSentence > 16 && avgWordsPerSentence < 24) aiSignal += 0.25;
-  if (lexicalDiversity < 0.55) aiSignal += 0.30;
-  if (repetitionRatio > 0.05) aiSignal += 0.20;
-  if (wordCount < 30) aiSignal += 0.10; // Short texts are less conclusive
-
-  // Clamp aiSignal 0–0.80  (never 100% AI — always some uncertainty)
-  aiSignal = Math.min(aiSignal + Math.random() * 0.08, 0.80);
-
-  const aiPct = Math.round(aiSignal * 100);
-  const humanPct = Math.round((1 - aiSignal) * 0.88 * 100); // small gap for "humanized AI"
-  const humanizedPct = 100 - aiPct - humanPct;
-  const authenticity = humanPct;
-
-  // Misinformation: random-ish but seeded by text length + content
-  const misinfoKeywords = ['fake', 'false', 'hoax', 'conspiracy', 'rumor', 'unverified', 'claim'];
-  const misinfoHits = misinfoKeywords.filter((kw) =>
-    text.toLowerCase().includes(kw)
-  ).length;
-  const misinfoRisk = misinfoHits > 1 ? 'High' : misinfoHits === 1 ? 'Medium' : 'Low';
-
-  return { aiPct, humanPct, humanizedPct, authenticity, misinfoRisk };
-}
-
-// ─── Highlight words in the user's text ───────────────────────────────────────
-function buildHighlightedSegments(text, aiPct) {
-  const sentences = text.split(/(?<=[.!?])\s+/);
-  return sentences.map((sentence, i) => {
-    // Deterministically classify each sentence
-    const hash = sentence.length + i;
-    if (aiPct > 50 && hash % 4 === 0) return { text: sentence, color: 'decoration-red-400' };
-    if (hash % 3 === 0) return { text: sentence, color: 'decoration-green-400' };
-    if (hash % 5 === 0) return { text: sentence, color: 'decoration-yellow-400' };
-    if (aiPct > 35 && hash % 7 === 0) return { text: sentence, color: 'decoration-orange-400' };
-    return { text: sentence, color: null };
-  });
-}
+import safeLocalStorage from '../../utils/safeLocalStorage';
+import { analyzeText, buildHighlightedSegments } from '../../utils/analyzeText';
 
 const LegendItem = ({ colorClass, label }) => (
   <div className="flex items-center gap-2">
@@ -103,14 +18,11 @@ const LegendItem = ({ colorClass, label }) => (
 // ─── Main Component ────────────────────────────────────────────────────────────
 const Result = () => {
   const router = useRouter();
-  const [inputText, setInputText] = useState('');
   const [result, setResult] = useState(null);
   const [segments, setSegments] = useState([]);
-  const [localText, setLocalText] = useState('');
 
   useEffect(() => {
     const saved = safeLocalStorage.getItem('veritas_text') || '';
-    setLocalText(saved);
     if (saved.trim().length > 0) {
       const analysis = analyzeText(saved);
       setResult(analysis);
@@ -119,12 +31,6 @@ const Result = () => {
   }, []);
 
   const isAnalyzed = result !== null;
-
-  const getMisinfoColor = (risk) => {
-    if (risk === 'High') return 'text-red-500';
-    if (risk === 'Medium') return 'text-yellow-500';
-    return 'text-green-500';
-  };
 
   return (
     <Layout>

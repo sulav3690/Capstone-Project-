@@ -33,11 +33,65 @@ import {
 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Toggle from '../../components/ui/Toggle';
-import Footer from '../../components/Footer';
 import Sidebar from '../../components/Sidebar';
 import { useToast } from '../../components/ToastProvider';
 import safeLocalStorage from '../../utils/safeLocalStorage';
 import { analyzeText, buildHighlightedSegments } from '../../utils/analyzeText';
+import api from '../../utils/api';
+
+const DEFAULT_SUBSCRIPTION_ACCESS = {
+  plan: 'Free',
+  word_limit: 10000,
+  detection_limit: 50,
+  detections_used: 0,
+  detections_remaining: 50,
+  features: {
+    ai_detector: true,
+    deep_scan: false,
+    advanced_misinformation: false,
+    detailed_reports: false,
+  },
+  response_tier: 'standard',
+  support_tier: 'community',
+};
+
+const PLAN_ACCESS_FALLBACKS = {
+  Free: DEFAULT_SUBSCRIPTION_ACCESS,
+  Monthly: {
+    plan: 'Monthly',
+    word_limit: 50000,
+    detection_limit: 500,
+    detections_used: 0,
+    detections_remaining: 500,
+    features: {
+      ai_detector: true,
+      deep_scan: true,
+      advanced_misinformation: true,
+      detailed_reports: false,
+    },
+    response_tier: 'fast',
+    support_tier: 'standard',
+  },
+  Yearly: {
+    plan: 'Yearly',
+    word_limit: 500000,
+    detection_limit: null,
+    detections_used: 0,
+    detections_remaining: null,
+    features: {
+      ai_detector: true,
+      deep_scan: true,
+      advanced_misinformation: true,
+      detailed_reports: true,
+    },
+    response_tier: 'fastest',
+    support_tier: 'priority',
+  },
+};
+
+function getFallbackSubscriptionAccess(plan) {
+  return PLAN_ACCESS_FALLBACKS[plan] || DEFAULT_SUBSCRIPTION_ACCESS;
+}
 
 // ─── Analysis engine and localStorage are now imported from shared utils ──────
 
@@ -59,6 +113,7 @@ const Detector = () => {
     }
     return 'Free';
   });
+  const [subscriptionAccess, setSubscriptionAccess] = useState(DEFAULT_SUBSCRIPTION_ACCESS);
   const [showResults, setShowResults] = useState(false);
   const [resultsData, setResultsData] = useState(null);
   const [segments, setSegments] = useState([]);
@@ -66,42 +121,20 @@ const Detector = () => {
   // Account subview states
   const [accountSubTab, setAccountSubTab] = useState('general');
   const [displayName, setDisplayName] = useState('');
-  const [emailAddress, setEmailAddress] = useState('sulav2080-0306@iimscollege.edu.np');
+  const [emailAddress, setEmailAddress] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [scans, setScans] = useState([
-    {
-      id: "scan-1",
-      filename: "assignment_final.txt",
-      score: 16,
-      time: "2 hours ago",
-      text: "Climate change is one of the most critical challenges facing our world today. Rising global temperatures, driven primarily by human emissions of greenhouse gases, are causing glaciers to melt and sea levels to rise. Urgent collective action is required to transition to renewable energy sources, decrease carbon emissions, and preserve biodiversity for future generations."
-    },
-    {
-      id: "scan-2",
-      filename: "blog_post_draft.txt",
-      score: 2,
-      time: "1 day ago",
-      text: "Welcome back to my blog! Today I want to share my simple morning routine that has completely changed my productivity. I start at 6 AM with a glass of warm water, followed by a quick 10-minute stretch. Then I write down three things I am grateful for before opening my laptop. It makes a significant difference in how focused and energized I feel throughout the day."
-    },
-    {
-      id: "scan-3",
-      filename: "research_abstract.txt",
-      score: 88,
-      time: "2 days ago",
-      text: "This study presents a novel deep learning framework designed to optimize real-time image recognition tasks in low-bandwidth edge computing environments. By utilizing dynamic pruning algorithms and low-rank tensor decompositions, the proposed method achieves a 45% reduction in computational complexity while maintaining 98.6% classification accuracy on benchmark datasets. Furthermore, empirical evaluations demonstrate significant energy efficiency gains."
-    },
-    {
-      id: "scan-4",
-      filename: "ai_experiment.txt",
-      score: 95,
-      time: "3 days ago",
-      text: "The rapid advancements in artificial intelligence have led to the development of sophisticated large language models capable of generating highly coherent, human-like text across various domains. These models leverage transformer architectures trained on vast corpora of textual data to predict subsequent tokens and generate responses. While these technologies offer substantial potential for creative assistance and automation, they also introduce significant challenges regarding authenticity verification and detection."
-    }
-  ]);
+  const [scans, setScans] = useState([]);
+  const maxWords = subscriptionAccess.word_limit || DEFAULT_SUBSCRIPTION_ACCESS.word_limit;
+  const detectionLimitReached = subscriptionAccess.detections_remaining === 0;
+  const hasDeepScan = Boolean(subscriptionAccess.features?.deep_scan);
+  const hasAdvancedMisinformation = Boolean(
+    subscriptionAccess.features?.advanced_misinformation
+  );
+  const hasDetailedReports = Boolean(subscriptionAccess.features?.detailed_reports);
 
   const handleLoadScan = (scan) => {
     setActiveTab('detector');
@@ -142,14 +175,43 @@ const Detector = () => {
   const fileInputRef = useRef(null);
   const editorRef = useRef(null);
   const resultsRef = useRef(null);
+  const analysisControllerRef = useRef(null);
+
+  useEffect(() => {
+    return () => analysisControllerRef.current?.abort();
+  }, []);
 
   const handleSubscribe = (planName) => {
-    let price = 'Rs. 250';
-    if (planName === 'Yearly') price = 'Rs. 2500';
-    router.push(`/payment?planName=${encodeURIComponent(planName + ' Plan')}&planPrice=${encodeURIComponent(price)}`);
+    router.push(`/payment?plan=${planName === 'Yearly' ? 'yearly' : 'monthly'}`);
   };
 
   // Read subscription plan and user profile from localStorage on mount
+  const loadHistory = async () => {
+    try {
+      const res = await api.get('/api/analyze/history/');
+      if (res.status === 'success' && res.history) {
+        const formattedScans = res.history.map(item => {
+          const date = new Date(item.created_at);
+          const timeStr = isNaN(date.getTime()) ? 'recently' : date.toLocaleString();
+          const wordList = item.input_text.trim().split(/\s+/);
+          const name = wordList.slice(0, 3).join('_').replace(/[^a-zA-Z0-9_]/g, '') + '.txt';
+          return {
+            id: item.id,
+            filename: name || 'scan_result.txt',
+            score: Math.round(item.ai_score),
+            time: timeStr,
+            text: item.input_text,
+            misinfoRisk: item.detailed_breakdown?.misinfo_details?.verdict || 'Low Risk',
+            details: item.detailed_breakdown
+          };
+        });
+        setScans(formattedScans);
+      }
+    } catch (err) {
+      console.error("Failed to load scan history:", err);
+    }
+  };
+
   useEffect(() => {
     const savedPlan = safeLocalStorage.getItem('veritas_subscription_plan');
     if (savedPlan) {
@@ -166,30 +228,50 @@ const Detector = () => {
   }, []);
 
   // Onboarding survey states
-  const [surveyData, setSurveyData] = useState(null);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true);
-
-    // Auth guard: if no logged-in user, redirect to login
-    const savedName = safeLocalStorage.getItem('veritas_display_name');
-    if (!savedName) {
-      router.push('/login');
-      return;
-    }
-
-    const completed = safeLocalStorage.getItem('veritas_onboarding_completed');
-    if (!completed) {
-      router.push('/survey');
-      return;
-    } else if (completed !== 'skipped') {
+    const checkUser = async () => {
       try {
-        setSurveyData(JSON.parse(completed));
-      } catch (e) {
-        // ignore errors
+        const res = await api.get('/api/auth/me/');
+        if (res.status === 'success' && res.user) {
+          if (res.user.onboarding_completed === false) {
+            router.replace('/survey');
+            return;
+          }
+
+          const verifiedPlan = res.user.subscription_plan || 'Free';
+          const serverAccess = res.user.subscription_access;
+          const verifiedAccess = serverAccess?.plan === verifiedPlan
+            ? serverAccess
+            : getFallbackSubscriptionAccess(verifiedPlan);
+
+          setDisplayName(res.user.username);
+          setEmailAddress(res.user.email);
+          setSubscriptionPlan(verifiedPlan);
+          setSubscriptionAccess(verifiedAccess);
+          safeLocalStorage.setItem('veritas_display_name', res.user.username);
+          safeLocalStorage.setItem('veritas_email', res.user.email);
+          safeLocalStorage.setItem('veritas_subscription_plan', res.user.subscription_plan || 'Free');
+          if (res.user.is_admin) {
+            safeLocalStorage.setItem('veritas_is_admin', 'true');
+          } else {
+            safeLocalStorage.removeItem('veritas_is_admin');
+          }
+          await loadHistory();
+          setIsMounted(true);
+        } else {
+          router.replace('/login');
+        }
+      } catch {
+        safeLocalStorage.removeItem('veritas_display_name');
+        safeLocalStorage.removeItem('veritas_email');
+        safeLocalStorage.removeItem('veritas_is_admin');
+        router.replace('/login');
       }
-    }
+    };
+
+    checkUser();
 
     // Load active tab from URL query parameters if present
     if (typeof window !== 'undefined') {
@@ -201,12 +283,27 @@ const Detector = () => {
     }
   }, [router]);
 
-  const handleSaveGeneral = (e) => {
+  const handleSaveGeneral = async (e) => {
     e.preventDefault();
-    showToast('General profile changes saved successfully!', 'success');
+    try {
+      showToast('Saving profile updates...', 'info');
+      const res = await api.put('/api/auth/me/', {
+        username: displayName,
+        email: emailAddress
+      });
+      if (res.status === 'success') {
+        safeLocalStorage.setItem('veritas_display_name', res.user.username);
+        safeLocalStorage.setItem('veritas_email', res.user.email);
+        showToast('Profile updated successfully!', 'success');
+      } else {
+        showToast(res.message || 'Profile update failed.', 'error');
+      }
+    } catch (err) {
+      showToast(err.message || 'Connection to update server failed.', 'error');
+    }
   };
 
-  const handleUpdatePassword = (e) => {
+  const handleUpdatePassword = async (e) => {
     e.preventDefault();
     if (!currentPassword || !newPassword || !confirmPassword) {
       showToast('Please fill out all password fields.', 'error');
@@ -216,13 +313,20 @@ const Detector = () => {
       showToast('New password and confirm password do not match.', 'error');
       return;
     }
-    showToast('Password updated successfully!', 'success');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+    try {
+      await api.post('/api/auth/password/', {
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      showToast('Password updated. Please sign in again.', 'success');
+      router.push('/login');
+    } catch (err) {
+      showToast(err.message || 'Password update failed.', 'error');
+    }
   };
-
-  const MAX_WORDS = 5000;
 
   const smoothScrollTo = (targetElement, duration = 800) => {
     if (!targetElement) return;
@@ -292,13 +396,19 @@ const Detector = () => {
         const textVal = editorRef.current.innerText || '';
         checkAndResetResults(textVal);
       }
-    } catch (err) {
+    } catch {
       showToast("Please use Ctrl+V to paste or grant clipboard permission to the browser.", "error");
     }
   };
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     const plainText = editorRef.current ? editorRef.current.innerText || '' : '';
+    if (detectionLimitReached) {
+      const limitMessage = `You have used all ${subscriptionAccess.detection_limit?.toLocaleString()} detections included with your ${subscriptionPlan} plan.`;
+      setError(limitMessage);
+      showToast(limitMessage, 'error');
+      return;
+    }
     if (plainText.trim().length < 20) {
       setError('Please enter at least 20 characters to analyze.');
       showToast('Please enter at least 20 characters to analyze.', 'error');
@@ -307,33 +417,115 @@ const Detector = () => {
     setError('');
     setIsAnalyzing(true);
     setShowResults(true);
+    analysisControllerRef.current?.abort();
+    const controller = new AbortController();
+    analysisControllerRef.current = controller;
 
     // Smoothly scroll to the results ref area using custom ease function
     setTimeout(() => {
       smoothScrollTo(resultsRef.current, 900);
     }, 100);
 
-    // Save states to localStorage for compatibility
-    safeLocalStorage.setItem('veritas_text', plainText);
-    safeLocalStorage.setItem('veritas_aiDetection', aiDetection.toString());
-    safeLocalStorage.setItem('veritas_misinformation', misinformation.toString());
+    try {
+      // Dispatch job to backend API
+      const res = await api.post(
+        '/api/analyze/',
+        {
+          text: plainText,
+          aiDetection,
+          misinformation
+        },
+        { signal: controller.signal, timeoutMs: 30000 }
+      );
 
-    setTimeout(() => {
-      const analysis = analyzeText(plainText);
-      setResultsData(analysis);
-      setSegments(buildHighlightedSegments(plainText, analysis.aiPct));
+      if (res.status === 'success' && res.job_id) {
+        const jobId = res.job_id;
+        let job = res.job;
+        const completedSynchronously = Boolean(res.job);
+
+        for (let attempt = 0; attempt < 30; attempt += 1) {
+          if (job?.status === 'SUCCESS' || job?.status === 'FAILED') break;
+          await new Promise((resolve) => setTimeout(resolve, 750));
+          if (controller.signal.aborted) return;
+          const statusRes = await api.get(
+            `/api/analyze/status/${jobId}/`,
+            { signal: controller.signal }
+          );
+          if (statusRes.status === 'success') job = statusRes.job;
+        }
+
+        if (job?.status === 'SUCCESS' && job.result) {
+          const record = job.result;
+          const analysis = {
+            authenticity: Math.round(100 - record.ai_score),
+            humanPct: Math.round(100 - record.ai_score),
+            aiPct: Math.round(record.ai_score),
+            humanizedPct: 0,
+            misinfoRisk: record.detailed_breakdown?.misinfo_details?.verdict || 'Low Risk',
+            details: record.detailed_breakdown
+          };
+
+          setResultsData(analysis);
+          setSegments(buildHighlightedSegments(plainText, record.ai_score));
+          if (completedSynchronously && res.subscription_access) {
+            setSubscriptionAccess(res.subscription_access);
+          } else {
+            setSubscriptionAccess((currentAccess) => {
+              const detectionsUsed = (currentAccess.detections_used || 0) + 1;
+              const detectionLimit = currentAccess.detection_limit;
+              return {
+                ...currentAccess,
+                detections_used: detectionsUsed,
+                detections_remaining: detectionLimit === null
+                  ? null
+                  : Math.max(0, detectionLimit - detectionsUsed),
+              };
+            });
+          }
+          setIsAnalyzing(false);
+          showToast('Analysis completed successfully!', 'success');
+          loadHistory();
+          setTimeout(() => smoothScrollTo(resultsRef.current, 700), 100);
+        } else if (job?.status === 'FAILED') {
+          setIsAnalyzing(false);
+          showToast("Analysis could not be completed. Please try again.", "error");
+        } else {
+          setIsAnalyzing(false);
+          showToast("Analysis timed out. Please try again.", "error");
+        }
+      } else {
+        setIsAnalyzing(false);
+        showToast(res.message || "Failed to launch analysis job.", "error");
+      }
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      if (err.data?.subscription_access) {
+        setSubscriptionAccess(err.data.subscription_access);
+      }
       setIsAnalyzing(false);
-      showToast('Analysis completed successfully!', 'success');
-      // Scroll again in case the container expanded
-      setTimeout(() => {
-        smoothScrollTo(resultsRef.current, 700);
-      }, 100);
-    }, 1500);
+      showToast(err.message || "Connection to analysis server failed.", "error");
+    }
+  };
+
+  const handleDeleteScan = async (event, scan) => {
+    event.stopPropagation();
+    try {
+      await api.delete(`/api/analyze/history/${scan.id}/`);
+      setScans((currentScans) => currentScans.filter((item) => item.id !== scan.id));
+      showToast(`Deleted ${scan.filename} from history`, 'success');
+    } catch (err) {
+      showToast(err.message || 'Could not delete this scan.', 'error');
+    }
   };
 
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      showToast('Please upload a text file smaller than 8 MB.', 'error');
+      e.target.value = '';
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (ev) => {
       if (editorRef.current) {
@@ -361,11 +553,11 @@ const Detector = () => {
       />
 
       {/* Main Content Pane - Automatically stretches dynamically when sidebar collapses */}
-      <main className={`flex-1 p-4 sm:p-8 pt-14 md:pt-10 sm:pt-16 max-w-[1240px] mx-auto w-full flex flex-col justify-start transition-all duration-300 ${
+      <main className={`flex-1 w-full max-w-[1240px] mx-auto flex flex-col justify-start p-4 pt-16 sm:p-8 md:pt-10 transition-all duration-300 ${
         isHistoryOpen ? 'lg:pr-[320px]' : ''
       }`}>
         {activeTab === 'dashboard' && (
-          <div className="flex flex-col gap-0 w-full max-w-[1000px] mx-auto text-left h-[calc(100vh-6rem)]">
+          <div className="flex min-h-[calc(100vh-6rem)] w-full max-w-[1000px] flex-col gap-0 mx-auto text-left lg:h-[calc(100vh-6rem)]">
             
             {/* Pastel Greeting Banner */}
             <div className="bg-[#EEEDFC] rounded-[28px] px-8 py-8 md:px-10 md:py-10 text-stone-800 relative overflow-hidden border border-stone-200/30 flex-[3]">
@@ -442,7 +634,11 @@ const Detector = () => {
                   <div className="flex flex-col">
                     <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider leading-none mb-2">Avg. AI Score</span>
                     <div className="flex items-baseline gap-1.5">
-                      <span className="text-3xl font-black text-stone-900 tracking-tight leading-none">24.2%</span>
+                      <span className="text-3xl font-black text-stone-900 tracking-tight leading-none">
+                        {scans.length
+                          ? `${(scans.reduce((sum, scan) => sum + scan.score, 0) / scans.length).toFixed(1)}%`
+                          : '0.0%'}
+                      </span>
                       <span className="text-stone-400 text-xs font-semibold leading-none">AI avg</span>
                     </div>
                   </div>
@@ -488,6 +684,11 @@ const Detector = () => {
               </div>
 
               <div className="flex flex-col flex-1 justify-evenly">
+                {scans.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-stone-200 px-5 py-8 text-center text-sm font-medium text-stone-400">
+                    Your completed scans will appear here.
+                  </div>
+                )}
                 {scans.slice(0, 3).map((scan, idx) => (
                   <div 
                     key={scan.id} 
@@ -526,7 +727,23 @@ const Detector = () => {
 
             <div className="flex flex-col gap-1.5 w-full">
               {/* Main Card container */}
-              <Card className="flex flex-col h-[64vh] min-h-[380px] max-h-[590px] bg-white border border-stone-200/40 shadow-[0_20px_50px_rgba(28,25,23,0.02)] p-5 sm:p-6 rounded-3xl transition-all duration-300">
+              <Card className="flex min-h-[540px] flex-col bg-white border border-stone-200/40 shadow-[0_20px_50px_rgba(28,25,23,0.02)] p-5 sm:p-6 rounded-3xl transition-all duration-300">
+                <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-[#1FA463]/15 bg-[#1FA463]/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="rounded-full bg-[#1FA463] px-3 py-1 text-[11px] font-black uppercase tracking-wide text-white">
+                      {subscriptionPlan} plan
+                    </span>
+                    <span className="text-sm font-bold text-stone-700">
+                      Up to {maxWords.toLocaleString()} words per scan
+                    </span>
+                  </div>
+                  <span className={`text-xs font-bold ${detectionLimitReached ? 'text-red-500' : 'text-stone-500'}`}>
+                    {subscriptionAccess.detection_limit === null
+                      ? `${subscriptionAccess.detections_used.toLocaleString()} scans used · Unlimited`
+                      : `${subscriptionAccess.detections_used.toLocaleString()} / ${subscriptionAccess.detection_limit.toLocaleString()} scans used`}
+                  </span>
+                </div>
+
                 {/* Toggles */}
                 <div className="flex items-center gap-8 mb-4.5 flex-wrap">
                   <Toggle
@@ -535,7 +752,7 @@ const Detector = () => {
                     onChange={setAiDetection}
                   />
                   <Toggle
-                    label="Misinformation Signals"
+                    label={hasAdvancedMisinformation ? 'Advanced Misinformation Signals' : 'Basic Misinformation Signals'}
                     enabled={misinformation}
                     onChange={setMisinformation}
                   />
@@ -552,6 +769,9 @@ const Detector = () => {
                     ref={editorRef}
                     id="analyze-input"
                     contentEditable={true}
+                    role="textbox"
+                    aria-label="Text to analyze"
+                    aria-multiline="true"
                     onInput={handleInput}
                     onFocus={() => setIsEmpty(false)}
                     onBlur={(e) => {
@@ -589,7 +809,7 @@ const Detector = () => {
                   </div>
 
                   {/* Functional Rich-Text Formatting Toolbar */}
-                  <div className="flex items-center gap-2 border border-stone-200/60 bg-stone-50/50 rounded-xl px-3.5 py-2 shadow-sm self-center sm:self-auto">
+                  <div className="flex w-full items-center gap-1 overflow-x-auto rounded-xl border border-stone-200/60 bg-stone-50/50 px-2 py-2 shadow-sm sm:w-auto sm:gap-2 sm:px-3.5">
                     <button
                       type="button"
                       onClick={handlePasteClick}
@@ -669,11 +889,11 @@ const Detector = () => {
 
                   {/* Word Count Pill */}
                   <div className="flex items-center justify-end">
-                    <span className={`text-[16.5px] font-semibold px-5 py-2.5 rounded-full border ${wordCount > MAX_WORDS
+                    <span className={`text-[16.5px] font-semibold px-5 py-2.5 rounded-full border ${wordCount > maxWords
                         ? 'bg-red-50 text-red-500 border-red-200'
                         : 'bg-stone-100 text-stone-500 border-stone-200/60'
                       }`}>
-                      {wordCount} / {MAX_WORDS} words
+                      {wordCount.toLocaleString()} / {maxWords.toLocaleString()} words
                     </span>
                   </div>
                 </div>
@@ -693,8 +913,8 @@ const Detector = () => {
               <button
                 id="analyze-btn"
                 onClick={handleAnalyze}
-                disabled={isAnalyzing || wordCount > MAX_WORDS}
-                className={`px-16 py-5 text-xl font-bold rounded-xl text-white shadow-md hover:shadow-lg active:scale-98 transition-all duration-200 ${isAnalyzing || wordCount > MAX_WORDS
+                disabled={isAnalyzing || wordCount > maxWords || detectionLimitReached}
+                className={`w-full px-8 py-4 text-lg font-bold rounded-xl text-white shadow-md hover:shadow-lg active:scale-98 transition-all duration-200 sm:w-auto sm:px-16 sm:py-5 sm:text-xl ${isAnalyzing || wordCount > maxWords || detectionLimitReached
                     ? 'bg-stone-300 cursor-not-allowed text-stone-500'
                     : 'bg-[#1FA463] hover:bg-[#178a52] hover:-translate-y-0.5 shadow-[#1FA463]/25'
                   }`}
@@ -707,7 +927,7 @@ const Detector = () => {
                     </svg>
                     Analyzing...
                   </span>
-                ) : 'Analyze Now'}
+                ) : detectionLimitReached ? 'Plan scan limit reached' : 'Analyze Now'}
               </button>
             </div>
 
@@ -822,23 +1042,38 @@ const Detector = () => {
                             </div>
                           </div>
 
-                          <div className="space-y-3.5 w-full text-left">
-                            <div className="flex justify-between items-center border-b border-stone-100 pb-2">
-                              <span className="text-[13px] text-stone-500 font-semibold">Unverified Claims Flags</span>
-                              <span className="text-[14px] font-bold text-stone-800">
-                                {resultsData.misinfoRisk === 'High' ? '3 flags' : resultsData.misinfoRisk === 'Medium' ? '1 flag' : '0 flags'}
-                              </span>
+                          <div className="relative min-h-[112px] w-full">
+                            <div className={`space-y-3.5 w-full text-left transition ${hasAdvancedMisinformation ? '' : 'select-none blur-[4px]'}`}>
+                              <div className="flex justify-between items-center border-b border-stone-100 pb-2">
+                                <span className="text-[13px] text-stone-500 font-semibold">Unverified Claims Flags</span>
+                                <span className="text-[14px] font-bold text-stone-800">
+                                  {resultsData.misinfoRisk === 'High' ? '3 flags' : resultsData.misinfoRisk === 'Medium' ? '1 flag' : '0 flags'}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center border-b border-stone-100 pb-2">
+                                <span className="text-[13px] text-stone-500 font-semibold">Sensationalism & Clickbait</span>
+                                <span className="text-[14px] font-bold text-stone-800">
+                                  {resultsData.misinfoRisk === 'High' ? 'High Presence' : resultsData.misinfoRisk === 'Medium' ? 'Moderate' : 'Negligible'}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-[13px] text-stone-500 font-semibold">Capitalization Ratio</span>
+                                <span className="text-[14px] font-bold text-stone-800">
+                                  {resultsData.details?.misinfo_details?.capitalization_ratio_percent ?? 0}%
+                                </span>
+                              </div>
                             </div>
-                            <div className="flex justify-between items-center border-b border-stone-100 pb-2">
-                              <span className="text-[13px] text-stone-500 font-semibold">Sensationalism & Clickbait</span>
-                              <span className="text-[14px] font-bold text-stone-800">
-                                {resultsData.misinfoRisk === 'High' ? 'High Presence' : resultsData.misinfoRisk === 'Medium' ? 'Moderate' : 'Negligible'}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-[13px] text-stone-500 font-semibold">Capitalization Ratio</span>
-                              <span className="text-[14px] font-bold text-stone-800">Normal</span>
-                            </div>
+                            {!hasAdvancedMisinformation && (
+                              <button
+                                type="button"
+                                onClick={() => setActiveTab('plans')}
+                                className="absolute inset-0 flex cursor-pointer flex-col items-center justify-center rounded-xl border border-stone-200/70 bg-white/75 px-4 text-center backdrop-blur-[1px]"
+                              >
+                                <Lock size={18} className="mb-1.5 text-stone-500" />
+                                <span className="text-xs font-black text-stone-800">Advanced misinformation is locked</span>
+                                <span className="mt-1 text-[11px] font-semibold text-[#1FA463]">Available on Monthly and Yearly</span>
+                              </button>
+                            )}
                           </div>
                         </div>
                       ) : (
@@ -857,7 +1092,7 @@ const Detector = () => {
 
                         <div className="flex items-center gap-2 mb-4">
                           <h3 className="text-lg font-bold text-stone-900 font-sans">Advanced Sentence Scanning</h3>
-                          {subscriptionPlan === 'Free' && (
+                          {!hasDeepScan && (
                             <span className="px-2.5 py-0.5 bg-red-50 text-red-500 border border-red-100 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 select-none">
                               <Lock size={10} /> Pro Locked
                             </span>
@@ -869,7 +1104,7 @@ const Detector = () => {
                         </p>
 
                         {/* Sentence display container */}
-                        <div className={`transition-all duration-500 ${subscriptionPlan === 'Free' ? 'blur-[5px] select-none pointer-events-none' : ''}`}>
+                        <div className={`transition-all duration-500 ${!hasDeepScan ? 'blur-[5px] select-none pointer-events-none' : ''}`}>
                           <div className="text-stone-700 leading-relaxed text-[16px] space-y-4 font-sans">
                             {segments.map((seg, i) => (
                               <span
@@ -899,14 +1134,14 @@ const Detector = () => {
                         </div>
 
                         {/* Lock Overlay when Free */}
-                        {subscriptionPlan === 'Free' && (
+                        {!hasDeepScan && (
                           <div className="absolute inset-0 bg-stone-50/15 backdrop-blur-[2px] flex flex-col items-center justify-center p-6 text-center z-10">
                             <div className="w-12 h-12 bg-stone-900 rounded-full flex items-center justify-center shadow-lg text-white mb-4 animate-bounce">
                               <Lock size={20} />
                             </div>
-                            <h4 className="text-lg font-bold text-stone-900 mb-2">Detailed Report is Locked</h4>
+                            <h4 className="text-lg font-bold text-stone-900 mb-2">Deep Scan is Locked</h4>
                             <p className="text-stone-500 text-sm max-w-sm mb-6 leading-relaxed">
-                              Get sentence-by-sentence highlights, clickbait breakdown, and structural statistics by upgrading your plan.
+                              Get sentence-by-sentence highlights and structural analysis with a Monthly or Yearly plan.
                             </p>
                             <button
                               onClick={() => {
@@ -920,6 +1155,41 @@ const Detector = () => {
                           </div>
                         )}
 
+                      </Card>
+                    </div>
+
+                    <div className="w-full text-left">
+                      <Card className="relative overflow-hidden rounded-3xl border border-stone-200/40 bg-white p-6 shadow-[0_15px_45px_rgba(28,25,23,0.02)] sm:p-8">
+                        <div className="mb-5 flex flex-wrap items-center gap-2">
+                          <h3 className="text-lg font-bold text-stone-900">Detailed Report Insights</h3>
+                          <span className="rounded-full border border-[#1FA463]/20 bg-[#1FA463]/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#1FA463]">
+                            Yearly
+                          </span>
+                        </div>
+                        <div className={`grid grid-cols-2 gap-4 transition sm:grid-cols-4 ${hasDetailedReports ? '' : 'select-none blur-[5px]'}`}>
+                          {[
+                            ['Words analyzed', resultsData.details?.metrics?.word_count ?? wordCount],
+                            ['Sentences', resultsData.details?.metrics?.sentence_count ?? 0],
+                            ['Perplexity', resultsData.details?.ai_details?.perplexity_score ?? 0],
+                            ['Burstiness', resultsData.details?.ai_details?.burstiness_score ?? 0],
+                          ].map(([label, value]) => (
+                            <div key={label} className="rounded-2xl border border-stone-100 bg-stone-50 px-4 py-4">
+                              <span className="block text-[10px] font-black uppercase tracking-wider text-stone-400">{label}</span>
+                              <span className="mt-1 block text-xl font-black text-stone-900">{value}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {!hasDetailedReports && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('plans')}
+                            className="absolute inset-0 flex cursor-pointer flex-col items-center justify-center bg-white/70 px-6 text-center backdrop-blur-[1px]"
+                          >
+                            <Lock size={22} className="mb-2 text-stone-600" />
+                            <span className="text-sm font-black text-stone-900">Detailed reports are locked</span>
+                            <span className="mt-1 text-xs font-semibold text-[#1FA463]">Available with the Yearly plan</span>
+                          </button>
+                        )}
                       </Card>
                     </div>
 
@@ -945,23 +1215,21 @@ const Detector = () => {
             <div className="mx-auto mt-8 grid w-full max-w-[1180px] grid-cols-1 gap-5 text-left md:grid-cols-3">
               {[
                 {
+                  planValue: 'Free',
                   name: 'Free Tier',
-                  badge: 'Current Plan',
-                  badgeClassName: 'bg-stone-100 text-stone-500 border-stone-200',
                   price: 'Rs. 0',
                   period: '',
                   features: [
                     'Access to AI detector',
-                    'AI deep scan',
+                    'Standard AI scan',
                     '10,000 words per input',
                     '50 AI detections',
                     'Basic misinformation detection',
                     'Standard response times'
                   ],
-                  buttonText: 'Current Plan',
-                  disabled: true
                 },
                 {
+                  planValue: 'Monthly',
                   name: 'Monthly Plan',
                   price: 'Rs. 250',
                   period: '/mo',
@@ -978,6 +1246,7 @@ const Detector = () => {
                   subscribePlan: 'Monthly'
                 },
                 {
+                  planValue: 'Yearly',
                   name: 'Yearly Plan',
                   badge: 'Most Popular',
                   badgeClassName: 'bg-[#1FA463]/10 text-[#1FA463] border-[#1FA463]/20',
@@ -996,56 +1265,77 @@ const Detector = () => {
                   buttonText: 'Upgrade',
                   subscribePlan: 'Yearly'
                 }
-              ].map((plan) => (
-                <article
-                  key={plan.name}
-                  className={`flex min-h-[455px] flex-col rounded-2xl bg-white px-6 py-6 ${
-                    plan.popular
-                      ? 'border-2 border-[#1FA463]'
-                      : 'border border-stone-200 hover:border-stone-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-lg font-bold text-stone-950">{plan.name}</h2>
-                    {plan.badge && (
-                      <span className={`rounded-full border px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide ${plan.badgeClassName}`}>
-                        {plan.badge}
-                      </span>
-                    )}
-                  </div>
+              ].map((plan) => {
+                const planRanks = { Free: 0, Monthly: 1, Yearly: 2 };
+                const currentPlanRank = planRanks[subscriptionPlan] ?? 0;
+                const cardPlanRank = planRanks[plan.planValue] ?? 0;
+                const isCurrent = subscriptionPlan === plan.planValue;
+                const isIncluded = !isCurrent && cardPlanRank < currentPlanRank;
+                const isDisabled = isCurrent || isIncluded || plan.planValue === 'Free';
+                const badge = isCurrent ? 'Current Plan' : plan.badge;
+                const badgeClassName = isCurrent
+                  ? 'bg-[#1FA463]/10 text-[#1FA463] border-[#1FA463]/20'
+                  : plan.badgeClassName;
+                const buttonText = isCurrent
+                  ? 'Current Plan'
+                  : isIncluded
+                    ? 'Included in your plan'
+                    : plan.buttonText;
 
-                  <div className="mt-5 flex items-end gap-1">
-                    <span className="text-4xl font-black leading-none tracking-normal text-stone-950">{plan.price}</span>
-                    {plan.period && (
-                      <span className="pb-1 text-sm font-bold text-stone-400">{plan.period}</span>
-                    )}
-                  </div>
-
-                  <ul className="mt-6 flex flex-1 flex-col gap-3">
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-3 text-sm font-medium leading-6 text-stone-600">
-                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1FA463]/10 text-[#1FA463]">
-                          <Check size={13} strokeWidth={3} />
-                        </span>
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <button
-                    type="button"
-                    disabled={plan.disabled}
-                    onClick={() => plan.subscribePlan && handleSubscribe(plan.subscribePlan)}
-                    className={`mt-6 h-11 rounded-xl px-5 text-sm font-bold ${
-                      plan.disabled
-                        ? 'cursor-not-allowed bg-stone-100 text-stone-400'
-                        : 'bg-stone-950 text-white hover:bg-[#1FA463]'
+                return (
+                  <article
+                    key={plan.name}
+                    aria-current={isCurrent ? 'true' : undefined}
+                    className={`flex min-h-[455px] flex-col rounded-2xl bg-white px-6 py-6 transition-colors ${
+                      isCurrent
+                        ? 'border-2 border-[#1FA463] ring-4 ring-[#1FA463]/5'
+                        : plan.popular
+                          ? 'border-2 border-[#1FA463]/70'
+                          : 'border border-stone-200 hover:border-stone-300'
                     }`}
                   >
-                    {plan.buttonText}
-                  </button>
-                </article>
-              ))}
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-lg font-bold text-stone-950">{plan.name}</h2>
+                      {badge && (
+                        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide ${badgeClassName}`}>
+                          {badge}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-5 flex items-end gap-1">
+                      <span className="text-4xl font-black leading-none tracking-normal text-stone-950">{plan.price}</span>
+                      {plan.period && (
+                        <span className="pb-1 text-sm font-bold text-stone-400">{plan.period}</span>
+                      )}
+                    </div>
+
+                    <ul className="mt-6 flex flex-1 flex-col gap-3">
+                      {plan.features.map((feature) => (
+                        <li key={feature} className="flex items-start gap-3 text-sm font-medium leading-6 text-stone-600">
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1FA463]/10 text-[#1FA463]">
+                            <Check size={13} strokeWidth={3} />
+                          </span>
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <button
+                      type="button"
+                      disabled={isDisabled}
+                      onClick={() => !isDisabled && plan.subscribePlan && handleSubscribe(plan.subscribePlan)}
+                      className={`mt-6 h-11 rounded-xl px-5 text-sm font-bold ${
+                        isDisabled
+                          ? 'cursor-not-allowed bg-stone-100 text-stone-400'
+                          : 'bg-stone-950 text-white hover:bg-[#1FA463]'
+                      }`}
+                    >
+                      {buttonText}
+                    </button>
+                  </article>
+                );
+              })}
             </div>
           </div>
         )}
@@ -1237,14 +1527,45 @@ const Detector = () => {
                       onClick={() => setActiveTab('plans')}
                       className="px-6 py-2.5 bg-[#1FA463] text-white hover:bg-[#178a52] rounded-xl font-bold text-sm shadow-md shadow-[#1FA463]/10 hover:shadow-lg active:scale-98 transition flex items-center gap-2 cursor-pointer select-none"
                     >
-                      Upgrade Plan
+                      {subscriptionPlan === 'Yearly' ? 'View Plans' : 'Upgrade Plan'}
                       <ChevronRight size={15} strokeWidth={2.5} />
                     </button>
                   </div>
 
-                  <div className="flex flex-col gap-1.5 text-left">
-                    <span className="text-[11px] font-bold text-stone-400 tracking-wider uppercase">Billing Cycle</span>
-                    <span className="text-[15px] font-bold text-stone-800">Monthly</span>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div className="flex flex-col gap-1.5 text-left">
+                      <span className="text-[11px] font-bold text-stone-400 tracking-wider uppercase">Billing Cycle</span>
+                      <span className="text-[15px] font-bold text-stone-800">
+                        {subscriptionPlan === 'Free' ? 'No paid billing cycle' : subscriptionPlan}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-1.5 text-left">
+                      <span className="text-[11px] font-bold text-stone-400 tracking-wider uppercase">Words Per Scan</span>
+                      <span className="text-[15px] font-bold text-stone-800">{maxWords.toLocaleString()}</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5 text-left">
+                      <span className="text-[11px] font-bold text-stone-400 tracking-wider uppercase">Detection Usage</span>
+                      <span className="text-[15px] font-bold text-stone-800">
+                        {subscriptionAccess.detection_limit === null
+                          ? `${subscriptionAccess.detections_used.toLocaleString()} / Unlimited`
+                          : `${subscriptionAccess.detections_used.toLocaleString()} / ${subscriptionAccess.detection_limit.toLocaleString()}`}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 grid grid-cols-1 gap-3 border-t border-stone-100 pt-6 sm:grid-cols-3">
+                    {[
+                      ['Deep scan', hasDeepScan],
+                      ['Advanced misinformation', hasAdvancedMisinformation],
+                      ['Detailed reports', hasDetailedReports],
+                    ].map(([label, isUnlocked]) => (
+                      <div key={label} className="flex items-center justify-between rounded-xl border border-stone-100 bg-stone-50 px-4 py-3">
+                        <span className="text-xs font-bold text-stone-700">{label}</span>
+                        <span className={`text-[10px] font-black uppercase tracking-wide ${isUnlocked ? 'text-[#1FA463]' : 'text-stone-400'}`}>
+                          {isUnlocked ? 'Unlocked' : 'Locked'}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -1255,7 +1576,7 @@ const Detector = () => {
 
       {/* ChatGPT / Claude style sliding Right History Sidebar Drawer */}
       <div
-        className={`fixed top-0 right-0 h-screen w-[320px] bg-[#FDFBF7] border-l border-stone-200/80 shadow-2xl z-[60] flex flex-col justify-between transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 right-0 h-screen w-full max-w-[320px] bg-[#FDFBF7] border-l border-stone-200/80 shadow-2xl z-[60] flex flex-col justify-between transition-transform duration-300 ease-in-out ${
           isHistoryOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
@@ -1305,11 +1626,7 @@ const Detector = () => {
 
                   {/* Delete Item Button */}
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setScans(scans.filter((s) => s.id !== scan.id));
-                      showToast(`Deleted ${scan.filename} from history`, 'success');
-                    }}
+                    onClick={(event) => handleDeleteScan(event, scan)}
                     className="absolute right-3 p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-md transition duration-150 cursor-pointer border-none outline-none md:opacity-0 md:group-hover:opacity-100"
                     title="Delete Scan"
                   >

@@ -16,7 +16,10 @@ class AnalysisRecord(mongoengine.Document):
 
     meta = {
         'collection': 'analysis_records',
-        'indexes': ['user_id', '-created_at']
+        'indexes': [
+            {'fields': ['user_id', '-created_at']},
+        ],
+        'auto_create_index_on_save': False,
     }
 
 
@@ -26,14 +29,20 @@ class AnalysisJob(mongoengine.Document):
     A client gets a job_id and polls status until SUCCESS.
     """
     job_id = mongoengine.StringField(required=True, unique=True)
+    user_id = mongoengine.StringField(default="")
     status = mongoengine.StringField(
         choices=('PENDING', 'PROCESSING', 'SUCCESS', 'FAILED'),
         default='PENDING'
     )
     result_record_id = mongoengine.StringField(default="")
+    error_message = mongoengine.StringField(default="", max_length=500)
     created_at = mongoengine.DateTimeField(default=datetime.datetime.utcnow)
 
     meta = {
         'collection': 'analysis_jobs',
-        'indexes': ['job_id']
+        'indexes': [
+            'job_id',
+            {'fields': ['created_at'], 'expireAfterSeconds': 86400},
+        ],
+        'auto_create_index_on_save': False,
     }

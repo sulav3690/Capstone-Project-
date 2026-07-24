@@ -17,6 +17,7 @@ import {
   X
 } from 'lucide-react';
 import safeLocalStorage from '../utils/safeLocalStorage';
+import api from '../utils/api';
 
 /**
  * Shared Sidebar component used by Dashboard, Payment, and Support pages.
@@ -38,22 +39,44 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Auto-collapse sidebar on screens below 1024px
   useEffect(() => {
-    const handleResize = () => {
-      const isMobile = window.innerWidth < 768;
-      const isTablet = window.innerWidth < 1024;
-
-      if (isMobile) {
+    const tabletQuery = window.matchMedia('(max-width: 1023px)');
+    const mobileQuery = window.matchMedia('(max-width: 767px)');
+    const handleViewportChange = () => {
+      if (mobileQuery.matches) {
         setIsMobileOpen(false);
       }
-      setIsSidebarCollapsed(isTablet);
+      setIsSidebarCollapsed(tabletQuery.matches);
     };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    handleViewportChange();
+    tabletQuery.addEventListener('change', handleViewportChange);
+    mobileQuery.addEventListener('change', handleViewportChange);
+    return () => {
+      tabletQuery.removeEventListener('change', handleViewportChange);
+      mobileQuery.removeEventListener('change', handleViewportChange);
+    };
   }, []);
+
+  useEffect(() => {
+    setIsAdmin(safeLocalStorage.getItem('veritas_is_admin') === 'true');
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!isMobileOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') setIsMobileOpen(false);
+    };
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isMobileOpen]);
 
   // Close mobile drawer on route change
   useEffect(() => {
@@ -74,19 +97,21 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
     setShowLogoutConfirm(true);
   };
 
-  const confirmLogout = () => {
-    safeLocalStorage.removeItem('veritas_onboarding_completed');
+  const confirmLogout = async () => {
+    try {
+      await api.post('/api/auth/logout/');
+    } catch { /* ignore */ }
     safeLocalStorage.removeItem('veritas_subscription_plan');
     safeLocalStorage.removeItem('veritas_display_name');
     safeLocalStorage.removeItem('veritas_email');
+    safeLocalStorage.removeItem('veritas_is_admin');
     router.push('/login');
     setIsMobileOpen(false);
     setShowLogoutConfirm(false);
   };
 
   const handleSubscribe = () => {
-    const price = '$20';
-    router.push(`/payment?planName=${encodeURIComponent('Monthly Plan')}&planPrice=${encodeURIComponent(price)}`);
+    router.push('/payment?plan=monthly');
     setIsMobileOpen(false);
   };
 
@@ -176,6 +201,27 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
             </button>
           </div>
 
+          {/* Admin Panel (only visible to admins) */}
+          {isAdmin && (
+            <div className="flex flex-col gap-2 w-full">
+              {!isCollapsed && (
+                <span className="text-xs font-bold text-stone-400/80 tracking-wider uppercase px-4 whitespace-nowrap">Admin</span>
+              )}
+              <button
+                onClick={() => { router.push('/admin'); setIsMobileOpen(false); }}
+                className={`flex items-center gap-3 rounded-full text-[15.5px] transition-all text-left w-full ${
+                  pathname === '/admin'
+                    ? 'bg-stone-900 text-white shadow-sm font-semibold'
+                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
+                } ${isCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'}`}
+                title="Admin Panel"
+              >
+                <ShieldCheck size={18} className="shrink-0" />
+                {!isCollapsed && <span className="truncate">Admin Panel</span>}
+              </button>
+            </div>
+          )}
+
           {/* Help Section */}
           <div className="flex flex-col gap-2 w-full">
             {!isCollapsed && (
@@ -206,7 +252,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
               {!isCollapsed && <span className="truncate">Support</span>}
             </button>
             <button
-              onClick={() => { window.open('https://discord.gg/YwGVj2V5Qk', '_blank'); setIsMobileOpen(false); }}
+              onClick={() => { window.open('https://discord.gg/YwGVj2V5Qk', '_blank', 'noopener,noreferrer'); setIsMobileOpen(false); }}
               className={`flex items-center gap-3 text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 rounded-full font-medium text-[15.5px] transition-all text-left w-full ${
                 isCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'
               }`}
@@ -227,7 +273,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
             className="relative cursor-pointer hover:scale-105 transition-all w-10 h-10 rounded-full bg-gradient-to-br from-[#7755FF] to-[#4F33FF] flex items-center justify-center text-white font-bold text-[15px] shadow-sm border-none outline-none shrink-0"
             title={`${displayName} - ${subscriptionPlan} Plan`}
           >
-            {displayName.charAt(0)}
+            {(displayName || 'User').charAt(0)}
             <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-[#22C55E] ring-2 ring-white"></span>
           </button>
         ) : (
@@ -239,7 +285,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
             >
               <div className="relative shrink-0">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7755FF] to-[#4F33FF] flex items-center justify-center text-white font-bold text-sm shadow-sm">
-                  {displayName.charAt(0)}
+                  {(displayName || 'User').charAt(0)}
                 </div>
                 <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-[#22C55E] ring-2 ring-[#EDE7DC]"></span>
               </div>
@@ -252,7 +298,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
                     </span>
                   )}
                 </div>
-                <span className="text-stone-500 text-[11px] font-semibold truncate leading-none mt-0.5">@{displayName.toLowerCase().replace(/\s+/g, '_')}</span>
+                <span className="text-stone-500 text-[11px] font-semibold truncate leading-none mt-0.5">@{(displayName || 'user').toLowerCase().replace(/\s+/g, '_')}</span>
               </div>
             </div>
 
@@ -334,9 +380,10 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
         {/* Mobile Close Button */}
         {isMobileOpen && (
           <button
-            onClick={() => setIsMobileOpen(false)}
-            className="absolute top-4 right-4 w-8 h-8 bg-stone-100 hover:bg-stone-200 rounded-lg flex items-center justify-center transition z-50 cursor-pointer"
-            title="Close Menu"
+          onClick={() => setIsMobileOpen(false)}
+          className="absolute top-4 right-4 w-8 h-8 bg-stone-100 hover:bg-stone-200 rounded-lg flex items-center justify-center transition z-50 cursor-pointer"
+          title="Close Menu"
+          aria-label="Close sidebar menu"
           >
             <X size={16} className="text-stone-600" />
           </button>
@@ -348,6 +395,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
             className="hidden md:flex absolute top-[88px] right-0 translate-x-1/2 w-6 h-6 bg-white border border-stone-200 rounded-full items-center justify-center hover:bg-stone-50 hover:border-stone-300 shadow-sm transition z-50 group cursor-pointer"
             title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isSidebarCollapsed ? (
               <ChevronRight size={13} className="text-stone-500 group-hover:text-stone-800 transition" />

@@ -5,8 +5,22 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 
-from apps.accounts.models import User
-from apps.accounts.serializers import RegisterSerializer, UserSerializer, ProfileUpdateSerializer
+from datetime import datetime
+
+from django.conf import settings
+from django.contrib.auth import authenticate
+from mongoengine.errors import DoesNotExist, ValidationError as MongoValidationError
+from .models import OnboardingSurvey, User
+from .serializers import (
+    OnboardingSurveySerializer,
+    PasswordChangeSerializer,
+    ProfileUpdateSerializer,
+    RegisterSerializer,
+    SupportTicketSerializer,
+    UserFeedbackSerializer,
+    UserSerializer,
+)
+from ..detector.models import AnalysisRecord
 from utils.jwt_utils import set_jwt_cookies, clear_jwt_cookies
 
 
@@ -69,8 +83,7 @@ class LoginView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        from django.contrib.auth import authenticate
-        user = authenticate(request, username=username, password=password)
+        user = authenticate(request, username=username.strip(), password=password)
 
         if user:
             refresh = RefreshToken.for_user(user)
@@ -98,7 +111,9 @@ class LogoutView(APIView):
     POST /api/auth/logout/
     Blacklists the user's refresh token and clears their cookies.
     """
-    permission_classes = [IsAuthenticated]
+    # Logout must remain available when a browser has cookies for an account
+    # that was deleted directly from MongoDB.
+    permission_classes = [AllowAny]
 
     def post(self, request):
         response = Response(
@@ -143,8 +158,21 @@ class TokenRefreshView(APIView):
             )
 
         try:
-            # Generate new access token
             token = RefreshToken(refresh_token)
+            user_id = token.get("user_id")
+            try:
+                user = User.objects.get(id=user_id)
+            except (User.DoesNotExist, MongoValidationError):
+                response = Response(
+                    {
+                        "status": "error",
+                        "message": "Your previous account no longer exists. Please sign in or register again.",
+                    },
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+                return clear_jwt_cookies(response)
+
+            user.expire_subscription_if_needed()
             new_access_token = str(token.access_token)
 
             response = Response(
@@ -172,7 +200,7 @@ class TokenRefreshView(APIView):
             )
             return response
 
-        except Exception as e:
+        except TokenError:
             # Clear invalid cookies
             response = Response(
                 {
@@ -227,4 +255,267 @@ class MeView(APIView):
             },
             status=status.HTTP_400_BAD_REQUEST
         )
-from django.conf import settings
+
+    def patch(self, request):
+        """Allow partial updates via PATCH as well."""
+        return self.put(request)
+
+
+class PasswordChangeView(APIView):
+    """Change the signed-in user's password after verifying the old password."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = PasswordChangeSerializer(
+            data=request.data,
+            context={"request": request},
+        )
+        if not serializer.is_valid():
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Password update validation failed.",
+                    "details": serializer.errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        request.user.set_password(serializer.validated_data["new_password"])
+        request.user.save()
+        response = Response(
+            {
+                "status": "success",
+                "message": "Password updated successfully. Please sign in again.",
+            },
+            status=status.HTTP_200_OK,
+        )
+        return clear_jwt_cookies(response)
+
+
+class AdminStatsView(APIView):
+    """
+    GET /api/auth/admin-stats/
+    Restricted to admin users (username 'admin' or is_admin=True).
+    Returns total users, total scans, lists of users, and lists of recent scans.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not getattr(request.user, "is_admin", False):
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Permission denied. Admin privileges required."
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Totals
+        total_users = User.objects.count()
+        total_scans = AnalysisRecord.objects.count()
+
+        recent_users = list(User.objects.order_by('-created_at')[:50])
+        users_list = [
+            {
+                "id": str(u.id),
+                "username": u.username,
+                "email": u.email,
+                "subscription_plan": u.subscription_plan,
+                "is_admin": getattr(u, 'is_admin', False),
+                "created_at": u.created_at.isoformat() if u.created_at else None
+            }
+            for u in recent_users
+        ]
+
+        # Resolve scan owners in one query instead of one query per result.
+        recent_scans = list(AnalysisRecord.objects.order_by('-created_at')[:50])
+        user_ids = {scan.user_id for scan in recent_scans if scan.user_id}
+        users_by_id = {
+            str(user.id): user.username
+            for user in User.objects(id__in=list(user_ids)).only('username')
+        } if user_ids else {}
+        scans_list = []
+        for s in recent_scans:
+            scans_list.append({
+                "id": str(s.id),
+                "user_id": s.user_id,
+                "username": users_by_id.get(s.user_id, "Unknown"),
+                "ai_score": s.ai_score,
+                "misinformation_score": s.misinformation_score,
+                "created_at": s.created_at.isoformat() if s.created_at else None
+            })
+
+        return Response(
+            {
+                "status": "success",
+                "stats": {
+                    "total_users": total_users,
+                    "total_scans": total_scans
+                },
+                "users": users_list,
+                "scans": scans_list
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class AdminUserView(APIView):
+    """Allow an authenticated administrator to change another user's role."""
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, user_id):
+        if not getattr(request.user, "is_admin", False):
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Permission denied. Admin privileges required.",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        is_admin = request.data.get("is_admin")
+        if not isinstance(is_admin, bool):
+            return Response(
+                {
+                    "status": "error",
+                    "message": "is_admin must be a boolean value.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            target_user = User.objects.get(id=user_id)
+        except (DoesNotExist, MongoValidationError):
+            return Response(
+                {"status": "error", "message": "User not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if target_user.id == request.user.id and not is_admin:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "You cannot remove your own administrator access.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        target_user.is_admin = is_admin
+        target_user.save()
+        return Response(
+            {
+                "status": "success",
+                "message": "User permissions updated successfully.",
+                "user": UserSerializer(target_user).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class SupportTicketView(APIView):
+    """
+    POST /api/support/
+    Submits a user support message.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = SupportTicketSerializer(
+            data=request.data,
+            context={"request": request},
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {
+                    "status": "success",
+                    "message": "Support ticket submitted successfully."
+                },
+                status=status.HTTP_201_CREATED
+            )
+        return Response(
+            {
+                "status": "error",
+                "message": "Validation failed.",
+                "details": serializer.errors
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+class UserFeedbackView(APIView):
+    """
+    POST /api/auth/feedback/
+    Saves general feedback answers in MongoDB.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = UserFeedbackSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {
+                    "status": "success",
+                    "message": "Feedback saved successfully."
+                },
+                status=status.HTTP_201_CREATED
+            )
+        return Response(
+            {
+                "status": "error",
+                "message": "Feedback validation failed.",
+                "details": serializer.errors
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+class OnboardingSurveyView(APIView):
+    """
+    POST /api/auth/onboarding-survey/
+    Saves onboarding survey answers in MongoDB.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = OnboardingSurveySerializer(data=request.data)
+        if serializer.is_valid():
+            data = serializer.validated_data
+            completed_at = data.get("completed_at") or datetime.utcnow()
+            user_id = str(request.user.id)
+
+            survey = OnboardingSurvey.objects(user_id=user_id).first()
+            if survey is None:
+                survey = OnboardingSurvey(user_id=user_id)
+
+            survey.role = data.get("role", "")
+            survey.email = data.get("email") or request.user.email
+            survey.heard_about_us = data.get("heard_about_us", "")
+            survey.purpose = data.get("purpose", "")
+            survey.plan_chosen = data.get("plan_chosen", "")
+            survey.completed_at = completed_at
+            survey.save()
+
+            request.user.onboarding_completed = True
+            request.user.onboarding_completed_at = completed_at
+            request.user.save()
+
+            return Response(
+                {
+                    "status": "success",
+                    "message": "Onboarding survey saved successfully.",
+                    "user": UserSerializer(request.user).data,
+                },
+                status=status.HTTP_201_CREATED
+            )
+        return Response(
+            {
+                "status": "error",
+                "message": "Onboarding survey validation failed.",
+                "details": serializer.errors
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )

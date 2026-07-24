@@ -1,8 +1,7 @@
-import time
-import random
+import hashlib
 import re
 from celery import shared_task
-from apps.detector.models import AnalysisJob, AnalysisRecord
+from .models import AnalysisJob, AnalysisRecord
 
 
 @shared_task
@@ -16,9 +15,6 @@ def run_detector_analysis(job_id, user_id, text, ai_enabled, misinfo_enabled):
         job = AnalysisJob.objects.get(job_id=job_id)
         job.status = 'PROCESSING'
         job.save()
-
-        # Simulate heavy ML model computation delay (1.5 seconds)
-        time.sleep(1.5)
 
         # 1. Linguistic Basic Metrics
         words = text.split()
@@ -36,13 +32,17 @@ def run_detector_analysis(job_id, user_id, text, ai_enabled, misinfo_enabled):
         ai_markers = ["delve", "testament", "furthermore", "moreover", "in conclusion", "pivotal", "demystify", "beacon"]
         ai_hits = [w for w in ai_markers if w in text.lower()]
         
-        # Base AI score starts with a random component, and scales with AI markers
-        base_ai = random.uniform(5.0, 25.0)
+        # Use a stable text-derived offset so the same text always receives the
+        # same result. This avoids visibly changing scores between scans.
+        digest = int(hashlib.sha256(text.encode('utf-8')).hexdigest()[:8], 16)
+        stable_offset = (digest % 80) / 10
+        base_ai = 8.0 + stable_offset
         marker_weight = len(ai_hits) * 15.0
-        ai_score = min(99.4, base_ai + marker_weight) if ai_enabled else 0.0
+        sentence_uniformity = max(0.0, 15.0 - abs(avg_sentence_len - 20.0))
+        ai_score = min(99.4, base_ai + marker_weight + sentence_uniformity) if ai_enabled else 0.0
 
         # Predictability indicator (Perplexity) - lower perplexity indicates higher AI probability
-        perplexity = max(10, round(120.0 - (ai_score * 0.8) + random.uniform(-10, 10), 1))
+        perplexity = max(10, round(120.0 - (ai_score * 0.8) + (stable_offset - 4), 1))
         
         # Variance in sentence length (Burstiness) - AI text is highly uniform (low burstiness)
         sentence_lengths = [len(s.split()) for s in sentences]
@@ -65,7 +65,7 @@ def run_detector_analysis(job_id, user_id, text, ai_enabled, misinfo_enabled):
         capital_words = sum(1 for w in words if w.isupper() and len(w) > 1)
         capital_ratio = (capital_words / max(1, word_count)) * 100.0
 
-        base_misinfo = random.uniform(2.0, 15.0)
+        base_misinfo = 3.0 + ((digest >> 8) % 70) / 10
         marker_misinfo_weight = len(misinfo_hits) * 20.0
         caps_weight = min(25.0, capital_ratio * 1.5)
         misinfo_score = min(98.7, base_misinfo + marker_misinfo_weight + caps_weight) if misinfo_enabled else 0.0
@@ -109,12 +109,13 @@ def run_detector_analysis(job_id, user_id, text, ai_enabled, misinfo_enabled):
 
         return str(record.id)
 
-    except Exception as e:
+    except Exception as exc:
         # Mark job as failed in case of unhandled error
         try:
             job = AnalysisJob.objects.get(job_id=job_id)
             job.status = 'FAILED'
+            job.error_message = str(exc)[:500]
             job.save()
         except Exception:
             pass
-        raise e
+        raise

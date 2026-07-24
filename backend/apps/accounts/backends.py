@@ -1,4 +1,4 @@
-from apps.accounts.models import User
+from .models import User
 
 
 class MongoEngineAuthBackend:
@@ -16,11 +16,12 @@ class MongoEngineAuthBackend:
         try:
             # Authenticate via email or username
             if '@' in username:
-                user = User.objects.get(email=username)
+                user = User.objects.get(email__iexact=username.strip())
             else:
-                user = User.objects.get(username=username)
+                user = User.objects.get(username__iexact=username.strip())
 
             if user.check_password(password):
+                user.expire_subscription_if_needed()
                 return user
         except User.DoesNotExist:
             return None
@@ -29,6 +30,8 @@ class MongoEngineAuthBackend:
 
     def get_user(self, user_id):
         try:
-            return User.objects.get(id=user_id)
+            user = User.objects.get(id=user_id)
+            user.expire_subscription_if_needed()
+            return user
         except Exception:
             return None

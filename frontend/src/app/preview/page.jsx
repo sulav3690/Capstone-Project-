@@ -199,7 +199,7 @@ export default function DesignPreview() {
                       <div className="h-7 w-1/3 bg-[#EBE5D8]/70 rounded-lg"></div>
                       <div className="h-5 w-1/6 bg-[#EBE5D8]/50 rounded-full"></div>
                     </div>
-                    <div className="grid grid-cols-3 gap-3 pt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                       <div className="h-16 bg-[#EBE5D8]/40 rounded-xl"></div>
                       <div className="h-16 bg-[#EBE5D8]/40 rounded-xl"></div>
                       <div className="h-16 bg-[#EBE5D8]/40 rounded-xl"></div>
@@ -234,7 +234,7 @@ export default function DesignPreview() {
       </div>
 
       {/* Toast Notification Container (Bottom-Right, Cream Sand-Beige Glass Theme) */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 max-w-[340px] w-full pointer-events-none">
+      <div className="fixed inset-x-4 bottom-4 z-50 flex flex-col gap-3 pointer-events-none sm:inset-x-auto sm:bottom-6 sm:right-6 sm:w-full sm:max-w-[340px]">
         {toasts.map((toast) => (
           <div
             key={toast.id}

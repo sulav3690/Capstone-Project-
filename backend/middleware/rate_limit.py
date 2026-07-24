@@ -1,4 +1,5 @@
 import logging
+from django.conf import settings
 from django.http import JsonResponse
 from django_redis import get_redis_connection
 
@@ -16,6 +17,9 @@ class RateLimitMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        if not getattr(settings, 'USE_REDIS', False):
+            return self.get_response(request)
+
         # Allow health checks to bypass rate limits
         if request.path.startswith('/api/health/'):
             return self.get_response(request)

@@ -1,6 +1,7 @@
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.exceptions import InvalidToken, AuthenticationFailed
-from apps.accounts.models import User
+from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken
+from mongoengine.errors import ValidationError as MongoValidationError
+from .models import User
 
 
 class CookieJWTAuthentication(JWTAuthentication):
@@ -26,16 +27,30 @@ class CookieJWTAuthentication(JWTAuthentication):
         # 3. Validate
         try:
             validated_token = self.get_validated_token(raw_token)
-        except Exception as e:
-            raise AuthenticationFailed('Invalid or expired access token') from e
+        except InvalidToken:
+            # Return None instead of raising so that AllowAny views
+            # (register, login) still work when a stale cookie exists.
+            # IsAuthenticated views will still deny access because
+            # request.user will be AnonymousUser.
+            return None
 
         # 4. Fetch the MongoEngine user object
-        return self.get_user(validated_token), validated_token
+        try:
+            user = self.get_user(validated_token)
+        except AuthenticationFailed:
+            # A correctly signed token can outlive a user deleted from MongoDB.
+            # Treat that browser as signed out so login/register/logout can
+            # recover, while protected views still return 401.
+            return None
+        return user, validated_token
 
     def get_user(self, validated_token):
+        user_id = validated_token.get('user_id')
+        if not user_id:
+            raise AuthenticationFailed('Session is no longer valid.')
         try:
-            user_id = validated_token.get('user_id')
             user = User.objects.get(id=user_id)
+            user.expire_subscription_if_needed()
             return user
-        except Exception:
-            raise AuthenticationFailed('User does not exist')
+        except (User.DoesNotExist, MongoValidationError) as exc:
+            raise AuthenticationFailed('Session is no longer valid.') from exc

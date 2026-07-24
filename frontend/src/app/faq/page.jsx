@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus, Minus } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
-import safeLocalStorage from '../../utils/safeLocalStorage';
+import api from '../../utils/api';
 
 const faqs = [
   {
@@ -29,21 +30,43 @@ const faqs = [
 ];
 
 export default function FAQPage() {
+  const router = useRouter();
   const [openFaqIndices, setOpenFaqIndices] = useState([]);
   const [isMounted, setIsMounted] = useState(false);
-  const [displayName, setDisplayName] = useState('Sulav Sharma');
-
-  const subscriptionPlan = typeof window !== 'undefined'
-    ? safeLocalStorage.getItem('veritas_subscription_plan') || 'Free'
-    : 'Free';
+  const [displayName, setDisplayName] = useState('');
+  const [subscriptionPlan, setSubscriptionPlan] = useState('Free');
 
   useEffect(() => {
-    setIsMounted(true);
-    const savedName = safeLocalStorage.getItem('veritas_display_name');
-    if (savedName) {
-      setDisplayName(savedName);
-    }
-  }, []);
+    let active = true;
+
+    const loadAccount = async () => {
+      try {
+        const response = await api.get('/api/auth/me/');
+        if (!active) return;
+
+        if (response.status !== 'success' || !response.user) {
+          router.replace('/#faq');
+          return;
+        }
+
+        if (response.user.onboarding_completed === false) {
+          router.replace('/survey');
+          return;
+        }
+
+        setDisplayName(response.user.username || '');
+        setSubscriptionPlan(response.user.subscription_plan || 'Free');
+        setIsMounted(true);
+      } catch {
+        if (active) router.replace('/#faq');
+      }
+    };
+
+    loadAccount();
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   const toggleFaq = (index) => {
     setOpenFaqIndices((current) =>

@@ -4,8 +4,11 @@ import React, { useState } from 'react';
 import PublicLayout from '../../components/PublicLayout';
 import { Mail, MapPin, Clock, MessageSquare, Send, CheckCircle, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
+import { useToast } from '../../components/ToastProvider';
+import api from '../../utils/api';
 
 export default function Contact() {
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -20,21 +23,24 @@ export default function Contact() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate sending email
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      await api.post('/api/support/', formData);
       setIsSubmitted(true);
       setFormData({ name: '', email: '', subject: '', message: '' });
-    }, 1500);
+    } catch (err) {
+      showToast(err.message || 'Could not send your message. Please try again.', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <PublicLayout>
-      <div className="max-w-6xl mx-auto px-6 py-12 md:py-16">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-16">
         
         {/* Header Block */}
         <div className="text-center max-w-2xl mx-auto mb-16">

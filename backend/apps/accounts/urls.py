@@ -1,10 +1,15 @@
 from django.urls import path
-from apps.accounts.views import (
+from .views import (
     RegisterView,
     LoginView,
     LogoutView,
     TokenRefreshView,
-    MeView
+    MeView,
+    PasswordChangeView,
+    AdminStatsView,
+    AdminUserView,
+    UserFeedbackView,
+    OnboardingSurveyView
 )
 
 urlpatterns = [
@@ -13,4 +18,9 @@ urlpatterns = [
     path('logout/', LogoutView.as_view(), name='auth_logout'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('me/', MeView.as_view(), name='user_profile'),
+    path('password/', PasswordChangeView.as_view(), name='password_change'),
+    path('admin-stats/', AdminStatsView.as_view(), name='admin_stats'),
+    path('admin-users/<str:user_id>/', AdminUserView.as_view(), name='admin_user_update'),
+    path('feedback/', UserFeedbackView.as_view(), name='user_feedback'),
+    path('onboarding-survey/', OnboardingSurveyView.as_view(), name='onboarding_survey'),
 ]

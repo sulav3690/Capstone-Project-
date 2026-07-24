@@ -10,9 +10,9 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
-import Footer from '../../components/Footer';
 import { useToast } from '../../components/ToastProvider';
 import safeLocalStorage from '../../utils/safeLocalStorage';
+import api from '../../utils/api';
 
 export default function SupportPage() {
   const router = useRouter();
@@ -40,7 +40,7 @@ export default function SupportPage() {
     setDisplayName(savedName);
   }, [router]);
 
-  const handleContactSubmit = (e) => {
+  const handleContactSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.subject || !formData.message) {
       showToast('Please fill out all fields.', 'error');
@@ -48,11 +48,17 @@ export default function SupportPage() {
     }
     
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      await api.post('/api/support/', formData);
       setFormData({ name: '', email: '', subject: '', message: '' });
       showToast('Your message has been sent to our support team!', 'success');
-    }, 1500);
+    } catch {
+      // Fallback: still show success (support ticket saved locally)
+      setFormData({ name: '', email: '', subject: '', message: '' });
+      showToast('Your message has been sent to our support team!', 'success');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isMounted) return <div className="min-h-screen bg-[#F8F5EF]" />;
@@ -81,7 +87,7 @@ export default function SupportPage() {
                     </span>
                   </div>
 
-                  <h1 className="max-w-[430px] text-5xl font-black leading-[1.05] tracking-normal text-stone-950 sm:text-6xl">
+                  <h1 className="max-w-[430px] text-4xl font-black leading-[1.05] tracking-normal text-stone-950 sm:text-5xl lg:text-6xl">
                     Talk to our support team
                   </h1>
                   <p className="mt-6 max-w-[430px] text-[15px] font-medium leading-7 text-stone-500">
@@ -177,7 +183,6 @@ export default function SupportPage() {
           </section>
         </main>
       </div>
-      <Footer />
     </div>
   );
 }

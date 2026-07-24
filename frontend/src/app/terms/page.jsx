@@ -4,25 +4,25 @@ import React, { useState, useEffect } from 'react';
 import PublicLayout from '../../components/PublicLayout';
 import { FileText, Award, Scale, HelpCircle, CheckCircle, ShieldAlert } from 'lucide-react';
 
+const SECTIONS = [
+  { id: 'introduction', label: 'Introduction' },
+  { id: 'acceptance', label: '1. Acceptance of Terms' },
+  { id: 'services-api', label: '2. Service & API Usage Rules' },
+  { id: 'billing-refunds', label: '3. Subscriptions & Refund Policy' },
+  { id: 'intellectual-property', label: '4. Intellectual Property' },
+  { id: 'academic-integrity', label: '5. Academic Honesty Policy' },
+  { id: 'liability-limits', label: '6. Limitation of Liability' },
+  { id: 'contact-legal', label: '7. Contact Legal Counsel' },
+];
+
 export default function TermsOfService() {
   const [activeSection, setActiveSection] = useState('introduction');
-
-  const sections = [
-    { id: 'introduction', label: 'Introduction' },
-    { id: 'acceptance', label: '1. Acceptance of Terms' },
-    { id: 'services-api', label: '2. Service & API Usage Rules' },
-    { id: 'billing-refunds', label: '3. Subscriptions & Refund Policy' },
-    { id: 'intellectual-property', label: '4. Intellectual Property' },
-    { id: 'academic-integrity', label: '5. Academic Honesty Policy' },
-    { id: 'liability-limits', label: '6. Limitation of Liability' },
-    { id: 'contact-legal', label: '7. Contact Legal Counsel' },
-  ];
 
   useEffect(() => {
     const handleScroll = () => {
       const scrollPosition = window.scrollY + 200;
 
-      for (const section of sections) {
+      for (const section of SECTIONS) {
         const element = document.getElementById(section.id);
         if (element) {
           const offsetTop = element.offsetTop;
@@ -35,7 +35,7 @@ export default function TermsOfService() {
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -51,7 +51,7 @@ export default function TermsOfService() {
 
   return (
     <PublicLayout>
-      <div className="max-w-6xl mx-auto px-6 py-12 md:py-16">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-16">
         
         {/* Title Block */}
         <div className="mb-14 text-center md:text-left">
@@ -75,7 +75,7 @@ export default function TermsOfService() {
               Sections
             </h3>
             <nav className="flex flex-col gap-1.5">
-              {sections.map((section) => (
+              {SECTIONS.map((section) => (
                 <button
                   key={section.id}
                   onClick={() => scrollToSection(section.id)}

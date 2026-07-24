@@ -1,10 +1,10 @@
 import '../index.css';
 import { ToastProvider } from '../components/ToastProvider';
-import Footer from '../components/Footer';
+import ConditionalFooter from '../components/ConditionalFooter';
 
 export const metadata = {
   title: 'VeritasAI | AI Content & Misinformation Detector',
-  description: 'AI detection software',
+  description: 'Analyze text for AI-writing patterns and misinformation signals with private scan history.',
   icons: {
     icon: [
       { url: '/favicon_io/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
@@ -18,6 +18,13 @@ export const metadata = {
   manifest: '/favicon_io/site.webmanifest'
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#FDFBF7',
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
@@ -27,7 +34,7 @@ export default function RootLayout({ children }) {
             <main className="flex-1">
               {children}
             </main>
-            <Footer />
+            <ConditionalFooter />
           </div>
         </ToastProvider>
       </body>

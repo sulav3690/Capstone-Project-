@@ -1,12 +1,14 @@
 import uuid
+from mongoengine.errors import DoesNotExist, ValidationError as MongoValidationError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import serializers
 
-from apps.detector.models import AnalysisJob, AnalysisRecord
-from apps.detector.tasks import run_detector_analysis
+from apps.accounts.subscriptions import get_subscription_access
+from .models import AnalysisJob, AnalysisRecord
+from .tasks import run_detector_analysis
 
 
 class AnalysisRequestSerializer(serializers.Serializer):
@@ -15,10 +17,12 @@ class AnalysisRequestSerializer(serializers.Serializer):
     misinformation = serializers.BooleanField(default=True)
 
     def validate_text(self, value):
-        # Validate max words limit (5000 words matching frontend MAX_WORDS)
+        word_limit = self.context.get("word_limit", 10_000)
         words_count = len(value.split())
-        if words_count > 5000:
-            raise serializers.ValidationError("Text exceeds the maximum limit of 5000 words.")
+        if words_count > word_limit:
+            raise serializers.ValidationError(
+                f"Your plan supports up to {word_limit:,} words per scan."
+            )
         return value
 
 
@@ -40,7 +44,26 @@ class AnalyzeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = AnalysisRequestSerializer(data=request.data)
+        access = get_subscription_access(request.user)
+        remaining = access["detections_remaining"]
+        if remaining is not None and remaining <= 0:
+            return Response(
+                {
+                    "status": "error",
+                    "code": "detection_limit_reached",
+                    "message": (
+                        f"You have used all {access['detection_limit']:,} "
+                        f"detections included with the {access['plan']} plan."
+                    ),
+                    "subscription_access": access,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = AnalysisRequestSerializer(
+            data=request.data,
+            context={"word_limit": access["word_limit"]},
+        )
         if serializer.is_valid():
             text = serializer.validated_data['text']
             ai_enabled = serializer.validated_data['aiDetection']
@@ -50,26 +73,65 @@ class AnalyzeView(APIView):
             job_id = str(uuid.uuid4())
 
             # Save initial job tracking status in MongoDB
-            job = AnalysisJob(job_id=job_id, status='PENDING')
+            user_id = str(request.user.id)
+            job = AnalysisJob(job_id=job_id, user_id=user_id, status='PENDING')
             job.save()
 
-            # Dispatch task to Celery worker queue
-            run_detector_analysis.delay(
-                job_id,
-                str(request.user.id),
-                text,
-                ai_enabled,
-                misinfo_enabled
-            )
+            # Dispatch task: use Celery if Redis is available, otherwise run synchronously
+            from django.conf import settings as django_settings
+            use_redis = getattr(django_settings, 'USE_REDIS', False)
 
-            return Response(
-                {
-                    "status": "success",
-                    "message": "Analysis successfully queued in background.",
-                    "job_id": job_id
-                },
-                status=status.HTTP_202_ACCEPTED
-            )
+            ran_synchronously = not use_redis
+            if use_redis:
+                try:
+                    run_detector_analysis.apply_async(
+                        args=[
+                            job_id,
+                            user_id,
+                            text,
+                            ai_enabled,
+                            misinfo_enabled,
+                        ],
+                        priority=access["queue_priority"],
+                    )
+                except Exception:
+                    # Fallback to synchronous if Celery/Redis connection fails
+                    ran_synchronously = True
+                    run_detector_analysis(
+                        job_id,
+                        user_id,
+                        text,
+                        ai_enabled,
+                        misinfo_enabled
+                    )
+            else:
+                # No Redis — run synchronously
+                run_detector_analysis(
+                    job_id,
+                    user_id,
+                    text,
+                    ai_enabled,
+                    misinfo_enabled
+                )
+
+            payload = {
+                "status": "success",
+                "message": "Analysis successfully queued in background.",
+                "job_id": job_id,
+                "subscription_access": access,
+            }
+            response_status = status.HTTP_202_ACCEPTED
+
+            if ran_synchronously:
+                completed_job = AnalysisJob.objects.get(job_id=job_id)
+                payload["message"] = "Analysis completed successfully."
+                payload["job"] = self._serialize_job(completed_job)
+                payload["subscription_access"] = get_subscription_access(
+                    request.user
+                )
+                response_status = status.HTTP_200_OK
+
+            return Response(payload, status=response_status)
 
         return Response(
             {
@@ -79,6 +141,22 @@ class AnalyzeView(APIView):
             },
             status=status.HTTP_400_BAD_REQUEST
         )
+
+    @staticmethod
+    def _serialize_job(job):
+        payload = {
+            "job_id": job.job_id,
+            "status": job.status,
+        }
+        if job.status == 'SUCCESS' and job.result_record_id:
+            try:
+                record = AnalysisRecord.objects.get(id=job.result_record_id)
+                payload["result"] = AnalysisRecordSerializer(record).data
+            except (DoesNotExist, MongoValidationError):
+                payload["status"] = 'FAILED'
+        elif job.status == 'FAILED':
+            payload["message"] = "Analysis could not be completed."
+        return payload
 
 
 class JobStatusView(APIView):
@@ -101,23 +179,19 @@ class JobStatusView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        response_payload = {
-            "job_id": job_id,
-            "status": job.status
-        }
-
-        if job.status == 'SUCCESS' and job.result_record_id:
-            try:
-                record = AnalysisRecord.objects.get(id=job.result_record_id)
-                response_payload["result"] = AnalysisRecordSerializer(record).data
-            except AnalysisRecord.DoesNotExist:
-                # Fallback if record was somehow deleted
-                response_payload["status"] = 'FAILED'
+        if job.user_id and job.user_id != str(request.user.id):
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Permission denied. You do not own this analysis job."
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         return Response(
             {
                 "status": "success",
-                "job": response_payload
+                "job": AnalyzeView._serialize_job(job)
             },
             status=status.HTTP_200_OK
         )
@@ -132,13 +206,19 @@ class AnalysisHistoryView(APIView):
 
     def get(self, request):
         user_id = str(request.user.id)
-        records = AnalysisRecord.objects(user_id=user_id).order_by('-created_at')
+        try:
+            requested_limit = int(request.query_params.get('limit', 50))
+        except (TypeError, ValueError):
+            requested_limit = 50
+        limit = min(max(requested_limit, 1), 100)
+        records = AnalysisRecord.objects(user_id=user_id).order_by('-created_at').limit(limit)
         serializer = AnalysisRecordSerializer(records, many=True)
         
         return Response(
             {
                 "status": "success",
-                "history": serializer.data
+                "history": serializer.data,
+                "limit": limit,
             },
             status=status.HTTP_200_OK
         )
@@ -172,7 +252,7 @@ class AnalysisDetailView(APIView):
                 },
                 status=status.HTTP_200_OK
             )
-        except Exception:
+        except (DoesNotExist, MongoValidationError):
             return Response(
                 {
                     "status": "error",
@@ -180,3 +260,27 @@ class AnalysisDetailView(APIView):
                 },
                 status=status.HTTP_404_NOT_FOUND
             )
+
+    def delete(self, request, pk):
+        try:
+            record = AnalysisRecord.objects.get(id=pk)
+        except (DoesNotExist, MongoValidationError):
+            return Response(
+                {
+                    "status": "error",
+                    "message": f"Analysis record with ID '{pk}' not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if record.user_id != str(request.user.id):
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Permission denied. You do not own this record."
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        record.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

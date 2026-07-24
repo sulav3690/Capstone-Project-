@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -8,15 +9,56 @@ import {
   ArrowLeft, ArrowRight as ArrowRightIcon, Menu, X, Loader2, Info,
   AlertCircle, ShieldAlert, CheckCircle2
 } from 'lucide-react';
-import { useToast } from '../components/ToastProvider';
-import Footer from './Footer';
+import { useToast } from './ToastProvider';
 import safeLocalStorage from '../utils/safeLocalStorage';
 import useFormValidation from '../hooks/useFormValidation';
 import GoogleAuthModal from './GoogleAuthModal';
+import api from '../utils/api';
+
+const registrationFieldMap = {
+  username: 'username',
+  password: 'password',
+  full_name: 'fullName',
+  email: 'email',
+  phone: 'phone',
+  country_code: 'countryCode',
+  role: 'role',
+  non_field_errors: 'form',
+};
+
+function firstErrorMessage(value) {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return firstErrorMessage(value[0]);
+  if (value && typeof value === 'object') {
+    return firstErrorMessage(Object.values(value)[0]);
+  }
+  return '';
+}
+
+function mapRegistrationErrors(details) {
+  if (!details || typeof details !== 'object' || Array.isArray(details)) return {};
+
+  return Object.entries(details).reduce((mappedErrors, [serverField, value]) => {
+    const formField = registrationFieldMap[serverField];
+    const message = firstErrorMessage(value);
+    if (formField && message) mappedErrors[formField] = message;
+    return mappedErrors;
+  }, {});
+}
+
+function InlineError({ id, message }) {
+  if (!message) return null;
+  return (
+    <p id={id} role="alert" className="flex items-start gap-1.5 text-[11px] font-semibold leading-4 text-red-500">
+      <AlertCircle size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+      <span>{message}</span>
+    </p>
+  );
+}
 
 export default function AuthContainer({ mode }) {
   const router = useRouter();
-  const { showToast } = useToast();
+  const { showToast, removeToast } = useToast();
 
   // Google Auth state
   const [showGoogleModal, setShowGoogleModal] = useState(false);
@@ -32,11 +74,13 @@ export default function AuthContainer({ mode }) {
   const [captchaNum1, setCaptchaNum1] = useState(0);
   const [captchaNum2, setCaptchaNum2] = useState(0);
   const [captchaAnswer, setCaptchaAnswer] = useState('');
+  const [captchaError, setCaptchaError] = useState('');
 
   const generateCaptcha = () => {
     setCaptchaNum1(Math.floor(Math.random() * 9) + 1); // 1-9
     setCaptchaNum2(Math.floor(Math.random() * 9) + 1); // 1-9
     setCaptchaAnswer('');
+    setCaptchaError('');
   };
 
 
@@ -48,8 +92,8 @@ export default function AuthContainer({ mode }) {
     { username: '', password: '' },
     (values) => {
       const errors = {};
-      if (!values.username) errors.username = "Username is required";
-      if (!values.password) errors.password = "Password is required";
+      if (!values.username.trim()) errors.username = "Enter your username or email address.";
+      if (!values.password) errors.password = "Enter your password.";
       return errors;
     }
   );
@@ -58,22 +102,30 @@ export default function AuthContainer({ mode }) {
     { username: '', password: '', fullName: '', email: '', phone: '', countryCode: '+977', role: '' },
     (values) => {
       const errors = {};
-      if (!values.username || !/^[a-zA-Z0-9]+$/.test(values.username)) {
-        errors.username = "Username must be alphanumeric";
+      const username = values.username.trim();
+      const fullName = values.fullName.trim();
+      const phoneDigits = values.phone.replace(/\D/g, '');
+
+      if (!username) {
+        errors.username = "Enter a username.";
+      } else if (username.length > 150 || !/^[\p{L}\p{N}_.@+-]+$/u.test(username)) {
+        errors.username = "Use letters, numbers, or . @ + - _ only.";
       }
       if (!values.password || !/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]|.*[^a-zA-Z0-9]).{8,}$/.test(values.password)) {
-        errors.password = "Min 8 chars, 1 uppercase, 1 lowercase, 1 number/symbol";
+        errors.password = "Use 8+ characters with uppercase, lowercase, and a number or symbol.";
       }
-      if (!values.fullName || !/^[a-zA-Z]+\s+[a-zA-Z\s]+$/.test(values.fullName)) {
-        errors.fullName = "Full Name must contain at least 2 words (letters only)";
+      if (!fullName) {
+        errors.fullName = "Enter your full name.";
+      } else if (!/^(?=.*\p{L})[\p{L}.'-]+(?:\s+[\p{L}.'-]+)+$/u.test(fullName)) {
+        errors.fullName = "Enter at least two names using letters, spaces, periods, hyphens, or apostrophes.";
       }
       if (!values.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
-        errors.email = "Valid email is required";
+        errors.email = "Enter a valid email, such as maya@example.com.";
       }
-      if (!values.phone || !/^[0-9]{10}$/.test(values.phone)) {
-        errors.phone = "Phone must be exactly 10 digits";
+      if (!phoneDigits || !/^[0-9]{7,15}$/.test(values.phone)) {
+        errors.phone = "Enter a phone number containing 7 to 15 digits.";
       }
-      if (!values.role) errors.role = "Role is required";
+      if (!values.role) errors.role = "Choose the role that best describes you.";
       return errors;
     }
   );
@@ -108,53 +160,112 @@ export default function AuthContainer({ mode }) {
     router.push(targetPath);
   };
 
-  const handleGoogleSuccess = () => {
-    setShowGoogleModal(false);
-    showToast('Signed in with Google Successfully!', 'success');
-    
-    setTimeout(() => {
-      if (!safeLocalStorage.getItem('veritas_onboarding_completed')) {
-        safeLocalStorage.setItem('veritas_onboarding_completed', 'skipped');
-      }
-      
-      const redirectPath = safeLocalStorage.getItem('veritas_redirect_after_login');
-      if (redirectPath) {
-        safeLocalStorage.removeItem('veritas_redirect_after_login');
-        router.push(redirectPath);
-      } else {
-        router.push('/dashboard');
-      }
-    }, 1500);
-  };
-
   // Login handler
   const handleLoginSubmit = async (values) => {
     const correctAns = captchaNum1 + captchaNum2;
-    if (parseInt(captchaAnswer) !== correctAns) {
-      showToast("Please solve the math verification puzzle correctly first.", "error");
+    if (!/^\d+$/.test(captchaAnswer) || Number(captchaAnswer) !== correctAns) {
       generateCaptcha();
+      setCaptchaError("That answer was incorrect. Solve the new question and try again.");
       return;
     }
-    safeLocalStorage.removeItem('veritas_onboarding_completed');
-    safeLocalStorage.setItem('veritas_display_name', values.username);
-    showToast(`Welcome back! Logging in...`, "success");
-    await new Promise(res => setTimeout(res, 800));
-    router.push('/dashboard');
+
+    setCaptchaError('');
+    loginForm.setErrors((previous) => {
+      const nextErrors = { ...previous };
+      delete nextErrors.form;
+      return nextErrors;
+    });
+
+    try {
+      const res = await api.post('/api/auth/login/', {
+        username: values.username,
+        password: values.password
+      });
+
+      if (res.status === 'success') {
+        safeLocalStorage.setItem('veritas_display_name', res.user.username);
+        safeLocalStorage.setItem('veritas_email', res.user.email);
+        safeLocalStorage.setItem('veritas_subscription_plan', res.user.subscription_plan || 'Free');
+        if (res.user.is_admin) {
+          safeLocalStorage.setItem('veritas_is_admin', 'true');
+        } else {
+          safeLocalStorage.removeItem('veritas_is_admin');
+        }
+        showToast("Login successful! Welcome back.", "success");
+
+        const redirectPath = safeLocalStorage.getItem('veritas_redirect_after_login');
+        if (res.user.onboarding_completed === false) {
+          safeLocalStorage.removeItem('veritas_redirect_after_login');
+          router.push('/survey');
+        } else if (redirectPath) {
+          safeLocalStorage.removeItem('veritas_redirect_after_login');
+          router.push(redirectPath);
+        } else {
+          router.push('/dashboard');
+        }
+      } else {
+        loginForm.setErrors({ form: "Username/email or password is incorrect." });
+        showToast("Incorrect username/email or password.", "error");
+      }
+    } catch (err) {
+      if (err.status === 401) {
+        loginForm.setErrors({ form: "Username/email or password is incorrect." });
+        showToast("Incorrect username/email or password.", "error");
+      } else {
+        showToast(err.message || "Connection to authentication server failed.", "error");
+      }
+    }
   };
 
   // Register handler
   const handleRegisterSubmit = async (values) => {
     const correctAns = captchaNum1 + captchaNum2;
-    if (parseInt(captchaAnswer) !== correctAns) {
-      showToast("Please solve the math verification puzzle correctly first.", "error");
+    if (!/^\d+$/.test(captchaAnswer) || Number(captchaAnswer) !== correctAns) {
       generateCaptcha();
+      setCaptchaError("That answer was incorrect. Solve the new question and try again.");
       return;
     }
-    safeLocalStorage.setItem('veritas_display_name', values.fullName || values.username);
-    if (values.email) safeLocalStorage.setItem('veritas_email', values.email);
-    showToast("Account created successfully! Taking you to login...", "success");
-    await new Promise(res => setTimeout(res, 800));
-    handleSwap('/login');
+
+    setCaptchaError('');
+    registerForm.setErrors((previous) => {
+      const nextErrors = { ...previous };
+      delete nextErrors.form;
+      return nextErrors;
+    });
+
+    const progressToastId = showToast("Creating your account...", "info");
+    try {
+      const res = await api.post('/api/auth/register/', {
+        username: values.username,
+        email: values.email,
+        password: values.password,
+        full_name: values.fullName,
+        phone: values.phone,
+        country_code: values.countryCode,
+        role: values.role
+      });
+
+      if (res.status === 'success') {
+        safeLocalStorage.setItem('veritas_display_name', res.user.username);
+        safeLocalStorage.setItem('veritas_email', res.user.email);
+        safeLocalStorage.setItem('veritas_subscription_plan', res.user.subscription_plan || 'Free');
+        showToast("Account created successfully! Let's personalize your workspace.", "success");
+        router.push('/survey');
+      } else {
+        registerForm.setErrors({ form: res.message || "Please review your details and try again." });
+      }
+    } catch (err) {
+      const fieldErrors = mapRegistrationErrors(err.data?.details);
+      if (err.status === 400 && Object.keys(fieldErrors).length > 0) {
+        registerForm.setErrors(fieldErrors);
+      } else if (err.status === 400) {
+        registerForm.setErrors({ form: err.message || "Please review your details and try again." });
+      } else {
+        showToast(err.message || "Failed to connect to registration server.", "error");
+      }
+    } finally {
+      removeToast(progressToastId);
+    }
   };
 
   // Static showcase values for mobile mini banner
@@ -163,15 +274,18 @@ export default function AuthContainer({ mode }) {
   const currentRisk = 'Low Risk';
 
   return (
-    <div className="min-h-screen w-full bg-[#FDFBF7] flex flex-col font-sans select-none relative overflow-x-hidden">
+    <div className="min-h-screen w-full bg-[#FDFBF7] flex flex-col font-sans relative overflow-x-hidden">
       
       {/* Website Header */}
-      <header className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-6 md:px-12 py-4 sm:py-5 bg-[#FDFBF7]/85 backdrop-blur-md border-b border-stone-200/40 shadow-[0_2px_20px_rgba(28,25,23,0.02)] transition-all">
+      <header className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-4 sm:px-6 md:px-12 py-4 sm:py-5 bg-[#FDFBF7]/85 backdrop-blur-md border-b border-stone-200/40 shadow-[0_2px_20px_rgba(28,25,23,0.02)] transition-all">
         <div className="flex items-center gap-12">
           <Link href="/" className="flex items-center hover:opacity-80 transition-all">
-            <img 
+            <Image
               src="/Headerfinal.webp" 
               alt="VeritasAI" 
+              width={188}
+              height={80}
+              priority
               className="h-10 w-auto object-contain" 
             />
           </Link>
@@ -179,8 +293,11 @@ export default function AuthContainer({ mode }) {
             <Link href="/subscription" className="text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide">
               Pricing
             </Link>
-            <Link href="/faq" className="text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide">
+            <Link href="/#faq" className="text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide">
               FAQ
+            </Link>
+            <Link href="/contact" className="text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide">
+              Contact
             </Link>
           </div>
         </div>
@@ -188,8 +305,8 @@ export default function AuthContainer({ mode }) {
           <Link href="/login" className="hidden md:flex text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide">
             Login
           </Link>
-          <Link href="/dashboard" className="hidden md:flex bg-[#7B82FF] hover:bg-[#6870fa] text-white text-[15px] font-bold py-2.5 px-6 rounded-full transition-all">
-            Dashboard
+          <Link href="/register" className="hidden md:flex bg-[#7B82FF] hover:bg-[#6870fa] text-white text-[15px] font-bold py-2.5 px-6 rounded-full transition-all">
+            Get Started
           </Link>
           
           {/* Mobile Menu Toggle */}
@@ -212,13 +329,14 @@ export default function AuthContainer({ mode }) {
           <nav className="flex flex-col gap-4">
             <Link href="/subscription" onClick={() => setMobileMenuOpen(false)} className="text-[16px] font-bold text-stone-800">Pricing</Link>
             <Link href="/#faq" onClick={() => setMobileMenuOpen(false)} className="text-[16px] font-bold text-stone-800">FAQ</Link>
+            <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="text-[16px] font-bold text-stone-800">Contact</Link>
           </nav>
           <div className="flex flex-col gap-3 pt-4 border-t border-stone-100">
             <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="w-full py-3 text-center text-[15px] font-bold text-stone-700 bg-stone-100 rounded-xl">
               Login
             </Link>
-            <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="w-full py-3 text-center text-[15px] font-bold text-white bg-[#7B82FF] rounded-xl">
-              Dashboard
+            <Link href="/register" onClick={() => setMobileMenuOpen(false)} className="w-full py-3 text-center text-[15px] font-bold text-white bg-[#7B82FF] rounded-xl">
+              Get Started
             </Link>
           </div>
         </div>
@@ -226,7 +344,7 @@ export default function AuthContainer({ mode }) {
 
       {/* Main Content (Centered Card) */}
       <main className="flex-1 w-full flex items-center justify-center pt-28 pb-16 px-4 sm:px-6 relative z-10">
-        <div className="w-full max-w-[1100px] bg-white border border-stone-200/50 rounded-[32px] shadow-[0_25px_60px_rgba(28,25,23,0.03)] overflow-hidden min-h-[640px] flex flex-col lg:flex-row">
+        <div className="w-full max-w-[1100px] bg-white border border-stone-200/50 rounded-[24px] sm:rounded-[32px] shadow-[0_25px_60px_rgba(28,25,23,0.03)] overflow-hidden flex flex-col lg:min-h-[640px] lg:flex-row">
           <div className="w-full flex flex-col lg:flex-row relative">
             
             {/* ==================== 1. BRANDING & QUOTE SIDE (DEEP BLUE PANEL) ==================== */}
@@ -309,7 +427,7 @@ export default function AuthContainer({ mode }) {
                     {mode === 'login' ? 'Welcome Back' : 'Create Account'}
                   </h1>
                   <p className="text-stone-400 text-xs font-semibold">
-                    {mode === 'login' ? 'Access your VeritasAI workspace' : 'Get started with an administrator account'}
+                    {mode === 'login' ? 'Access your VeritasAI workspace' : 'Create your VeritasAI account'}
                   </p>
                 </div>
 
@@ -319,23 +437,26 @@ export default function AuthContainer({ mode }) {
                     
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[11px] font-extrabold text-stone-500 uppercase tracking-wider">Username</label>
-                      <input
-                        type="text"
-                        placeholder="Enter username"
+                        <input
+                          type="text"
+                          placeholder="e.g. maya or maya@example.com"
+                          autoComplete="username"
                         {...loginForm.getInputProps('username')}
                         className={`w-full px-4 py-2.5 rounded-xl border bg-stone-50/30 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#1FA463]/30 focus:border-[#1FA463] transition font-medium text-[14px] ${loginForm.errors.username || loginForm.getInputProps('username').className.includes('animate-input-shake') ? loginForm.getInputProps('username').className : 'border-stone-200/80'}`}
                       />
+                      <InlineError id="username-error" message={loginForm.errors.username} />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
                       <div className="flex justify-between items-center">
                         <label className="text-[11px] font-extrabold text-stone-500 uppercase tracking-wider">Password</label>
-                        <button type="button" onClick={() => showToast("Password reset demo clicked.", "success")} className="text-[11px] font-bold text-[#7B82FF] hover:underline bg-transparent border-0 cursor-pointer">Forgot password?</button>
+                        <button type="button" onClick={() => router.push('/support')} className="text-[11px] font-bold text-[#7B82FF] hover:underline bg-transparent border-0 cursor-pointer">Forgot password?</button>
                       </div>
                       <div className="relative">
                         <input
                           type={showLoginPassword ? "text" : "password"}
-                          placeholder="Enter password"
+                          placeholder="Enter your account password"
+                          autoComplete="current-password"
                           {...loginForm.getInputProps('password')}
                           className={`w-full px-4 py-2.5 rounded-xl border bg-stone-50/30 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#1FA463]/30 focus:border-[#1FA463] transition font-medium text-[14px] ${loginForm.errors.password || loginForm.getInputProps('password').className.includes('animate-input-shake') ? loginForm.getInputProps('password').className : 'border-stone-200/80'} pr-10`}
                         />
@@ -343,6 +464,7 @@ export default function AuthContainer({ mode }) {
                           {showLoginPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                         </button>
                       </div>
+                      <InlineError id="password-error" message={loginForm.errors.password} />
                     </div>
 
                     {/* Math verification captcha */}
@@ -357,26 +479,47 @@ export default function AuthContainer({ mode }) {
                         </span>
                         <input
                           type="text"
-                          placeholder="Your answer"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          placeholder="e.g. 12"
                           value={captchaAnswer}
-                          onChange={(e) => setCaptchaAnswer(e.target.value)}
-                          className="flex-1 min-w-0 px-3 py-1.5 rounded-lg border border-stone-200/80 bg-white text-stone-800 focus:outline-none focus:border-[#1FA463] text-[13px] font-bold text-center"
+                          onChange={(e) => {
+                            setCaptchaAnswer(e.target.value.replace(/\D/g, ''));
+                            if (captchaError) setCaptchaError('');
+                          }}
+                          aria-invalid={Boolean(captchaError)}
+                          aria-describedby={captchaError ? 'captcha-error' : undefined}
+                          className={`flex-1 min-w-0 px-3 py-1.5 rounded-lg border bg-white text-stone-800 focus:outline-none focus:border-[#1FA463] text-[13px] font-bold text-center ${
+                            captchaError ? 'border-red-500' : 'border-stone-200/80'
+                          }`}
                         />
                       </div>
+                      <InlineError id="captcha-error" message={captchaError} />
                     </div>
+
+                    <InlineError id="login-form-error" message={loginForm.errors.form} />
 
                     {/* Submit Action */}
                     <button
                       type="submit"
-                      disabled={!captchaAnswer}
+                      disabled={!captchaAnswer || loginForm.isSubmitting}
                       className={`w-full py-3 rounded-xl text-[14px] font-extrabold transition-all duration-300 shadow-md flex items-center justify-center gap-2 select-none border-0 ${
-                        captchaAnswer 
+                        captchaAnswer && !loginForm.isSubmitting
                           ? 'bg-[#1FA463] hover:bg-[#178a52] text-white hover:shadow-lg hover:-translate-y-0.5 active:scale-98 active:translate-y-0 cursor-pointer' 
                           : 'bg-stone-100 text-stone-400 border border-stone-200/40 cursor-not-allowed shadow-none'
                       }`}
                     >
-                      Sign In
-                      <ArrowRight size={16} />
+                      {loginForm.isSubmitting ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          Signing in...
+                        </>
+                      ) : (
+                        <>
+                          Sign In
+                          <ArrowRight size={16} />
+                        </>
+                      )}
                     </button>
 
                     {/* Swap Link */}
@@ -397,22 +540,25 @@ export default function AuthContainer({ mode }) {
                 {mode === 'register' && (
                   <form className="w-full flex flex-col gap-4 text-left" onSubmit={registerForm.handleSubmit(handleRegisterSubmit)} noValidate>
                     
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[11px] font-extrabold text-stone-500 uppercase tracking-wider">Username <span className="text-red-500">*</span></label>
-                        <input
-                          type="text"
-                          placeholder="Username"
+                          <input
+                            type="text"
+                            placeholder="e.g. maya_sharma"
+                            autoComplete="username"
                           {...registerForm.getInputProps('username')}
                           className={`w-full px-4 py-2.5 rounded-xl border bg-stone-50/30 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#1FA463]/30 focus:border-[#1FA463] transition font-medium text-[14px] ${registerForm.errors.username || registerForm.getInputProps('username').className.includes('animate-input-shake') ? registerForm.getInputProps('username').className : 'border-stone-200/80'}`}
                         />
+                        <InlineError id="username-error" message={registerForm.errors.username} />
                       </div>
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[11px] font-extrabold text-stone-500 uppercase tracking-wider">Password <span className="text-red-500">*</span></label>
                         <div className="relative">
                           <input
                             type={showRegisterPassword ? "text" : "password"}
-                            placeholder="Password"
+                            placeholder="e.g. Veritas@2026"
+                            autoComplete="new-password"
                             {...registerForm.getInputProps('password')}
                             className={`w-full px-4 py-2.5 rounded-xl border bg-stone-50/30 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#1FA463]/30 focus:border-[#1FA463] transition font-medium text-[14px] ${registerForm.errors.password || registerForm.getInputProps('password').className.includes('animate-input-shake') ? registerForm.getInputProps('password').className : 'border-stone-200/80'} pr-10`}
                           />
@@ -420,6 +566,7 @@ export default function AuthContainer({ mode }) {
                             {showRegisterPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                           </button>
                         </div>
+                        <InlineError id="password-error" message={registerForm.errors.password} />
                         {/* Password Strength Indicator */}
                         {registerForm.values.password && (
                           <div className="flex flex-col gap-1 mt-1">
@@ -441,21 +588,25 @@ export default function AuthContainer({ mode }) {
                       <label className="text-[11px] font-extrabold text-stone-500 uppercase tracking-wider">Full Name <span className="text-red-500">*</span></label>
                       <input
                         type="text"
-                        placeholder="Enter complete name"
+                        placeholder="e.g. Maya Sharma"
+                        autoComplete="name"
                         {...registerForm.getInputProps('fullName')}
                         className={`w-full px-4 py-2.5 rounded-xl border bg-stone-50/30 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#1FA463]/30 focus:border-[#1FA463] transition font-medium text-[14px] ${registerForm.errors.fullName || registerForm.getInputProps('fullName').className.includes('animate-input-shake') ? registerForm.getInputProps('fullName').className : 'border-stone-200/80'}`}
                       />
+                      <InlineError id="fullName-error" message={registerForm.errors.fullName} />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[11px] font-extrabold text-stone-500 uppercase tracking-wider">Email <span className="text-red-500">*</span></label>
                         <input
                           type="email"
-                          placeholder="your.email@example.com"
+                          placeholder="e.g. maya@example.com"
+                          autoComplete="email"
                           {...registerForm.getInputProps('email')}
                           className={`w-full px-4 py-2.5 rounded-xl border bg-stone-50/30 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#1FA463]/30 focus:border-[#1FA463] transition font-medium text-[14px] ${registerForm.errors.email || registerForm.getInputProps('email').className.includes('animate-input-shake') ? registerForm.getInputProps('email').className : 'border-stone-200/80'}`}
                         />
+                        <InlineError id="email-error" message={registerForm.errors.email} />
                       </div>
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[11px] font-extrabold text-stone-500 uppercase tracking-wider">Phone <span className="text-red-500">*</span></label>
@@ -470,12 +621,15 @@ export default function AuthContainer({ mode }) {
                             <option value="+44">🇬🇧 +44</option>
                           </select>
                           <input
-                            type="tel"
-                            placeholder="98XXXXXXXX"
+                          type="tel"
+                          placeholder="e.g. 9812345678"
+                          inputMode="numeric"
+                          autoComplete="tel"
                             {...registerForm.getInputProps('phone')}
                             className={`w-full px-3 py-2.5 rounded-r-xl border bg-stone-50/30 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#1FA463]/30 focus:border-[#1FA463] transition font-medium text-[14px] ${registerForm.errors.phone || registerForm.getInputProps('phone').className.includes('animate-input-shake') ? registerForm.getInputProps('phone').className : 'border-stone-200/80'}`}
                           />
                         </div>
+                        <InlineError id="phone-error" message={registerForm.errors.phone} />
                       </div>
                     </div>
 
@@ -495,6 +649,7 @@ export default function AuthContainer({ mode }) {
                           ▼
                         </div>
                       </div>
+                      <InlineError id="role-error" message={registerForm.errors.role} />
                     </div>
 
                     {/* Math verification captcha */}
@@ -509,26 +664,47 @@ export default function AuthContainer({ mode }) {
                         </span>
                         <input
                           type="text"
-                          placeholder="Your answer"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          placeholder="e.g. 12"
                           value={captchaAnswer}
-                          onChange={(e) => setCaptchaAnswer(e.target.value)}
-                          className="flex-1 min-w-0 px-3 py-1.5 rounded-lg border border-stone-200/80 bg-white text-stone-800 focus:outline-none focus:border-[#1FA463] text-[13px] font-bold text-center"
+                          onChange={(e) => {
+                            setCaptchaAnswer(e.target.value.replace(/\D/g, ''));
+                            if (captchaError) setCaptchaError('');
+                          }}
+                          aria-invalid={Boolean(captchaError)}
+                          aria-describedby={captchaError ? 'captcha-error' : undefined}
+                          className={`flex-1 min-w-0 px-3 py-1.5 rounded-lg border bg-white text-stone-800 focus:outline-none focus:border-[#1FA463] text-[13px] font-bold text-center ${
+                            captchaError ? 'border-red-500' : 'border-stone-200/80'
+                          }`}
                         />
                       </div>
+                      <InlineError id="captcha-error" message={captchaError} />
                     </div>
+
+                    <InlineError id="register-form-error" message={registerForm.errors.form} />
 
                     {/* Submit Action */}
                     <button
                       type="submit"
-                      disabled={!captchaAnswer}
+                      disabled={!captchaAnswer || registerForm.isSubmitting}
                       className={`w-full py-3 rounded-xl text-[14px] font-extrabold transition-all duration-300 shadow-md flex items-center justify-center gap-2 select-none border-0 ${
-                        captchaAnswer 
+                        captchaAnswer && !registerForm.isSubmitting
                           ? 'bg-[#1FA463] hover:bg-[#178a52] text-white hover:shadow-lg hover:-translate-y-0.5 active:scale-98 active:translate-y-0 cursor-pointer' 
                           : 'bg-stone-100 text-stone-400 border border-stone-200/40 cursor-not-allowed shadow-none'
                       }`}
                     >
-                      Create Account
-                      <ArrowRight size={16} />
+                      {registerForm.isSubmitting ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          Creating account...
+                        </>
+                      ) : (
+                        <>
+                          Create Account
+                          <ArrowRight size={16} />
+                        </>
+                      )}
                     </button>
 
                     {/* Swap Link */}
@@ -558,7 +734,7 @@ export default function AuthContainer({ mode }) {
                   onClick={() => setShowGoogleModal(true)}
                   className="w-full flex items-center justify-center gap-3 bg-white border border-stone-200 py-3 rounded-xl text-[14px] font-bold text-stone-700 hover:bg-stone-50 hover:border-stone-300 transition duration-300 shadow-sm cursor-pointer"
                 >
-                  <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="google" />
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-sm font-black text-[#4285F4] shadow-sm" aria-hidden="true">G</span>
                   Google
                 </button>
 
@@ -570,14 +746,10 @@ export default function AuthContainer({ mode }) {
         </div>
       </main>
 
-      {/* Website Footer */}
-      <Footer className="w-full !mt-0 !rounded-b-none" />
-
       {/* Google Auth Modal Overlay */}
       <GoogleAuthModal 
         isOpen={showGoogleModal} 
         onClose={() => setShowGoogleModal(false)} 
-        onLoginSuccess={handleGoogleSuccess}
       />
     </div>
   );

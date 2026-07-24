@@ -31,8 +31,13 @@ export function analyzeText(text) {
   if (repetitionRatio > 0.05) aiSignal += 0.20;
   if (wordCount < 30) aiSignal += 0.10; // Short texts are less conclusive
 
-  // Clamp aiSignal 0–0.80 (never 100% AI — always some uncertainty)
-  aiSignal = Math.min(aiSignal + Math.random() * 0.08, 0.80);
+  // Use a stable text-derived offset so rescanning the same text does not
+  // produce a visibly different result.
+  const stableHash = Array.from(text).reduce(
+    (hash, character) => ((hash * 31) + character.charCodeAt(0)) >>> 0,
+    0
+  );
+  aiSignal = Math.min(aiSignal + (stableHash % 9) / 100, 0.80);
 
   const aiPct = Math.round(aiSignal * 100);
   const humanPct = Math.round((1 - aiSignal) * 0.88 * 100); // small gap for "humanized AI"

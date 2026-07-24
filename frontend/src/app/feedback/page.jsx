@@ -3,47 +3,40 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '../../components/Layout';
-import emailjs from '@emailjs/browser';
+import { useToast } from '../../components/ToastProvider';
+import api from '../../utils/api';
 
 export default function Feedback() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const whyChooseUsChecked = formData.getAll('why_choose_us');
 
-    const templateParams = {
-      hear_about_us: formData.get('hear_about_us') || '',
-      role: formData.get('role') || '',
-      ai_usage: formData.get('ai_usage') || '',
-      why_choose_us: whyChooseUsChecked.join(', '),
-    };
-
-    // Send feedback data using @emailjs/browser
-    emailjs.send(
-      'service_98z4snm',
-      'template_r8cy4sw',
-      templateParams,
-      'cPgeihOtrEGV8iPwT'
-    )
-    .then((result) => {
-      console.log("EmailJS Success:", result.text);
-    })
-    .catch((error) => {
-      console.error("EmailJS Error:", error);
-    });
-
-    setIsSubmitted(true);
-    setTimeout(() => {
-      router.push('/dashboard');
-    }, 2000);
+    setIsSubmitting(true);
+    try {
+      await api.post('/api/auth/feedback/', {
+        hear_about_us: formData.get('hear_about_us') || '',
+        role: formData.get('role') || '',
+        ai_usage: formData.get('ai_usage') || '',
+        why_choose_us: whyChooseUsChecked,
+      });
+      setIsSubmitted(true);
+      setTimeout(() => router.push('/dashboard'), 2000);
+    } catch (err) {
+      showToast(err.message || 'Could not submit your feedback.', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <Layout>
-      <div className="max-w-2xl mx-auto pt-8 mb-16">
+      <div className="max-w-2xl mx-auto pt-4 sm:pt-8 mb-10 sm:mb-16">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.06)] overflow-hidden">
           
           <div className="bg-[#1FA463] px-8 py-6 text-center">
@@ -52,7 +45,7 @@ export default function Feedback() {
           </div>
 
           {!isSubmitted ? (
-            <form className="p-8 flex flex-col gap-8" onSubmit={handleSubmit}>
+            <form className="p-5 sm:p-8 flex flex-col gap-8" onSubmit={handleSubmit}>
               
               {/* Question 1 */}
               <div className="flex flex-col gap-3">
@@ -142,9 +135,10 @@ export default function Feedback() {
               <div className="mt-4">
                 <button
                   type="submit"
-                  className="w-full py-3.5 rounded-xl bg-[#1FA463] hover:bg-[#178a52] text-white font-bold transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-[2px] active:scale-[0.98]"
+                  disabled={isSubmitting}
+                  className="w-full py-3.5 rounded-xl bg-[#1FA463] hover:bg-[#178a52] text-white font-bold transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-[2px] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Submit Survey
+                  {isSubmitting ? 'Submitting...' : 'Submit Survey'}
                 </button>
               </div>
 

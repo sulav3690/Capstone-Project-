@@ -41,6 +41,14 @@ def clear_jwt_cookies(response):
     """
     Clears all auth cookies upon user logout.
     """
-    response.delete_cookie('access_token', path='/')
-    response.delete_cookie('refresh_token', path='/')
+    response.delete_cookie(
+        'access_token',
+        path='/',
+        samesite='Lax',
+    )
+    response.delete_cookie(
+        'refresh_token',
+        path='/',
+        samesite='Lax',
+    )
     return response

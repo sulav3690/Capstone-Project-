@@ -1,4 +1,4 @@
-from django_compression_middleware.middleware import CompressionMiddleware as BaseCompressionMiddleware
+from compression_middleware.middleware import CompressionMiddleware as BaseCompressionMiddleware
 
 
 class CompressionMiddleware(BaseCompressionMiddleware):
