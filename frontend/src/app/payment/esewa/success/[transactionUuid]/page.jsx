@@ -134,7 +134,7 @@ export default function EsewaPaymentSuccessPage() {
               </button>
               <button
                 type="button"
-                onClick={() => router.push('/subscription')}
+                onClick={() => router.push('/payment?plan=monthly')}
                 className="w-full rounded-2xl bg-stone-100 px-5 py-3.5 font-black text-stone-700 transition hover:bg-stone-200 cursor-pointer"
               >
                 Back to plans

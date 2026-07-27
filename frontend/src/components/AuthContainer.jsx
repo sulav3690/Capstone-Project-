@@ -290,7 +290,7 @@ export default function AuthContainer({ mode }) {
             />
           </Link>
           <div className="hidden md:flex items-center gap-8">
-            <Link href="/subscription" className="text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide">
+            <Link href="/payment?plan=monthly" className="text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide">
               Pricing
             </Link>
             <Link href="/#faq" className="text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide">
@@ -327,7 +327,7 @@ export default function AuthContainer({ mode }) {
       >
         <div className="flex flex-col p-6 gap-6">
           <nav className="flex flex-col gap-4">
-            <Link href="/subscription" onClick={() => setMobileMenuOpen(false)} className="text-[16px] font-bold text-stone-800">Pricing</Link>
+            <Link href="/payment?plan=monthly" onClick={() => setMobileMenuOpen(false)} className="text-[16px] font-bold text-stone-800">Pricing</Link>
             <Link href="/#faq" onClick={() => setMobileMenuOpen(false)} className="text-[16px] font-bold text-stone-800">FAQ</Link>
             <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="text-[16px] font-bold text-stone-800">Contact</Link>
           </nav>
@@ -754,4 +754,3 @@ export default function AuthContainer({ mode }) {
     </div>
   );
 }
-

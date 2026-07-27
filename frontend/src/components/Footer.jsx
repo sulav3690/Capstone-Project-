@@ -40,7 +40,7 @@ const Footer = ({ className = "" }) => {
                 <h4 className="text-stone-900 font-extrabold text-sm tracking-tight">Help</h4>
                 <ul className="flex flex-col gap-2.5 text-xs font-semibold text-stone-500">
                   <li><Link href="/#faq" className="hover:text-stone-900 transition-colors">FAQs</Link></li>
-                  <li><Link href="/subscription" className="hover:text-stone-900 transition-colors">Plans & Pricing</Link></li>
+                  <li><Link href="/payment?plan=monthly" className="hover:text-stone-900 transition-colors">Plans & Pricing</Link></li>
                   <li><Link href="/contact" className="hover:text-stone-900 transition-colors">Contact Support</Link></li>
                 </ul>
               </div>

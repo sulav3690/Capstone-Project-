@@ -150,20 +150,13 @@ function PaymentPageContent() {
 
         <div className="grid grid-cols-1 xl:grid-cols-[0.9fr_1.1fr] gap-7 items-start">
           <section className="bg-white border border-stone-200/70 rounded-[28px] p-6 sm:p-8 shadow-[0_16px_42px_rgba(28,25,23,0.035)]">
-            <div className="flex flex-wrap justify-between gap-4 items-start">
+            <div>
               <div>
                 <h2 className="text-xl font-black text-stone-900">{plan.name}</h2>
                 <p className="mt-1 text-sm font-semibold text-stone-500">
                   Rs. {plan.amount.toFixed(2)} / {plan.period}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => router.push('/subscription')}
-                className="text-xs font-bold text-stone-600 bg-stone-100 hover:bg-stone-200 rounded-lg px-3 py-2 transition cursor-pointer"
-              >
-                Change plan
-              </button>
             </div>
 
             <ul className="mt-7 space-y-4">

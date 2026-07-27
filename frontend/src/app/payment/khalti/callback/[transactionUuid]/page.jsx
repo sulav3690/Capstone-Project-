@@ -87,20 +87,20 @@ export default function KhaltiPaymentCallbackPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#FDFBF7] px-4 py-12 grid place-items-center">
-      <section className="w-full max-w-xl rounded-[30px] border border-stone-200 bg-white p-7 text-center shadow-[0_20px_60px_rgba(28,25,23,0.08)] sm:p-10">
-        {state.kind === 'loading' && (
-          <LoaderCircle className="mx-auto h-14 w-14 animate-spin text-[#5C2D91]" />
-        )}
-        {state.kind === 'success' && (
-          <CheckCircle2 className="mx-auto h-16 w-16 text-[#1FA463]" />
-        )}
-        {state.kind === 'pending' && (
-          <TriangleAlert className="mx-auto h-16 w-16 text-amber-500" />
-        )}
-        {state.kind === 'failure' && (
-          <XCircle className="mx-auto h-16 w-16 text-red-500" />
-        )}
+    <main className="grid min-h-screen place-items-center bg-[#FDFBF7] px-4 py-12">
+        <section className="w-full max-w-xl rounded-[30px] border border-stone-200 bg-white p-7 text-center shadow-[0_20px_60px_rgba(28,25,23,0.08)] sm:p-10">
+          {state.kind === 'loading' && (
+            <LoaderCircle className="mx-auto h-14 w-14 animate-spin text-[#5C2D91]" />
+          )}
+          {state.kind === 'success' && (
+            <CheckCircle2 className="mx-auto h-16 w-16 text-[#1FA463]" />
+          )}
+          {state.kind === 'pending' && (
+            <TriangleAlert className="mx-auto h-16 w-16 text-amber-500" />
+          )}
+          {state.kind === 'failure' && (
+            <XCircle className="mx-auto h-16 w-16 text-red-500" />
+          )}
 
         <h1 className="mt-6 text-2xl font-black text-stone-900 sm:text-3xl">
           {state.kind === 'loading' && 'Confirming payment'}
@@ -163,23 +163,23 @@ export default function KhaltiPaymentCallbackPage() {
               </button>
               <button
                 type="button"
-                onClick={() => router.push('/subscription')}
+                onClick={() => router.push('/payment?plan=monthly')}
                 className="w-full cursor-pointer rounded-2xl bg-stone-100 px-5 py-3.5 font-black text-stone-700 transition hover:bg-stone-200"
               >
-                Back to plans
+                Back to plans and pricing
               </button>
             </>
           ) : state.kind === 'failure' ? (
             <button
               type="button"
-              onClick={() => router.replace('/subscription')}
+              onClick={() => router.replace('/payment?plan=monthly')}
               className="w-full cursor-pointer rounded-2xl bg-[#5C2D91] px-5 py-3.5 font-black text-white transition hover:bg-[#472170]"
             >
-              Return to plans
+              Back to plans and pricing
             </button>
           ) : null}
         </div>
-      </section>
+        </section>
     </main>
   );
 }

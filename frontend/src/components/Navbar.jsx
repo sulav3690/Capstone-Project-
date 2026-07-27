@@ -61,7 +61,7 @@ const Navbar = () => {
           <Link href="/dashboard" className="rounded-xl px-4 py-2 text-sm font-semibold text-stone-600 transition hover:bg-stone-100 hover:text-stone-900">
             Dashboard
           </Link>
-          <Link href="/subscription" className="rounded-xl px-4 py-2 text-sm font-semibold text-stone-600 transition hover:bg-stone-100 hover:text-stone-900">
+          <Link href="/payment?plan=monthly" className="rounded-xl px-4 py-2 text-sm font-semibold text-stone-600 transition hover:bg-stone-100 hover:text-stone-900">
             Plans
           </Link>
           <Link href="/feedback" className="rounded-xl px-4 py-2 text-sm font-semibold text-stone-600 transition hover:bg-stone-100 hover:text-stone-900">
@@ -91,7 +91,7 @@ const Navbar = () => {
       >
         <nav className="flex flex-col gap-2 p-4" aria-label="Mobile workspace navigation">
           <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="rounded-xl px-4 py-3 text-sm font-bold text-stone-700 hover:bg-stone-50">Dashboard</Link>
-          <Link href="/subscription" onClick={() => setMobileMenuOpen(false)} className="rounded-xl px-4 py-3 text-sm font-bold text-stone-700 hover:bg-stone-50">Plans</Link>
+          <Link href="/payment?plan=monthly" onClick={() => setMobileMenuOpen(false)} className="rounded-xl px-4 py-3 text-sm font-bold text-stone-700 hover:bg-stone-50">Plans</Link>
           <Link href="/feedback" onClick={() => setMobileMenuOpen(false)} className="rounded-xl px-4 py-3 text-sm font-bold text-stone-700 hover:bg-stone-50">Feedback</Link>
           <button onClick={handleLogout} className="rounded-xl bg-stone-900 px-4 py-3 text-left text-sm font-bold text-white">Sign out</button>
         </nav>
