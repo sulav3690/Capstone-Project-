@@ -1,108 +1,244 @@
 import hashlib
 import re
+
 from celery import shared_task
+from django.conf import settings
+
+from .ai_model import DetectorModelUnavailable, predict_ai
 from .models import AnalysisJob, AnalysisRecord
 
 
-@shared_task
-def run_detector_analysis(job_id, user_id, text, ai_enabled, misinfo_enabled):
-    """
-    Asynchronous Celery task simulating AI content and misinformation detection.
-    Analyzes the text metrics and saves the results in MongoDB.
-    """
+def _text_metrics(text):
+    words = text.split()
+    sentences = re.split(r'[.!?]+', text)
+    sentences = [sentence.strip() for sentence in sentences if sentence.strip()]
+    sentence_count = max(1, len(sentences))
+    word_count = len(words)
+    sentence_lengths = [len(sentence.split()) for sentence in sentences] or [word_count]
+
+    if len(sentence_lengths) > 1:
+        mean = sum(sentence_lengths) / len(sentence_lengths)
+        variance = sum((value - mean) ** 2 for value in sentence_lengths) / len(sentence_lengths)
+        burstiness = round(min(100.0, (variance ** 0.5) * 5), 1)
+    else:
+        burstiness = 10.0
+
+    return {
+        "words": words,
+        "word_count": word_count,
+        "character_count": len(text),
+        "sentence_count": sentence_count,
+        "avg_sentence_length": round(word_count / sentence_count, 1),
+        "burstiness_score": burstiness,
+    }
+
+
+def _fallback_ai_prediction(text, avg_sentence_len, ai_enabled, digest):
+    if not ai_enabled:
+        return {
+            "ai_score": 0.0,
+            "ai_probability": 0.0,
+            "human_probability": 1.0,
+            "verdict": "AI detection disabled",
+            "model_name": "disabled",
+            "chunks_analyzed": 0,
+        }
+
+    markers = [
+        "delve",
+        "testament",
+        "furthermore",
+        "moreover",
+        "in conclusion",
+        "pivotal",
+        "demystify",
+        "beacon",
+    ]
+    hits = [marker for marker in markers if marker in text.lower()]
+    stable_offset = (digest % 80) / 10
+    score = min(
+        99.4,
+        8.0
+        + stable_offset
+        + (len(hits) * 15.0)
+        + max(0.0, 15.0 - abs(avg_sentence_len - 20.0)),
+    )
+    return {
+        "ai_score": score,
+        "ai_probability": score / 100.0,
+        "human_probability": 1.0 - (score / 100.0),
+        "verdict": (
+            "Likely AI-Generated"
+            if score > 60
+            else ("Uncertain" if score > 30 else "Likely Human-Written")
+        ),
+        "model_name": "heuristic_fallback",
+        "detected_markers": hits,
+        "chunks_analyzed": 0,
+    }
+
+
+def _ai_prediction(text, ai_enabled, features, metrics, digest):
+    if not ai_enabled:
+        return _fallback_ai_prediction(
+            text,
+            metrics["avg_sentence_length"],
+            ai_enabled,
+            digest,
+        )
+
+    max_chunks = 4
+    if features.get("deep_scan"):
+        max_chunks = 8
+    if features.get("detailed_reports"):
+        max_chunks = 12
+
     try:
-        # Update job status to PROCESSING
+        return predict_ai(text, max_chunks=max_chunks)
+    except DetectorModelUnavailable:
+        if settings.AI_DETECTOR_REQUIRE_MODEL:
+            raise
+    except Exception:
+        if settings.AI_DETECTOR_REQUIRE_MODEL:
+            raise
+
+    prediction = _fallback_ai_prediction(
+        text,
+        metrics["avg_sentence_length"],
+        ai_enabled,
+        digest,
+    )
+    prediction["fallback_reason"] = "RoBERTa model is not available locally."
+    return prediction
+
+
+def _misinformation_prediction(text, words, misinfo_enabled, digest):
+    if not misinfo_enabled:
+        return 0.0, {
+            "verdict": "Misinformation detection disabled",
+            "detected_markers": [],
+            "capitalization_ratio_percent": 0.0,
+            "unverified_claims_count": 0,
+        }
+
+    markers = [
+        "shocking",
+        "miracle",
+        "conspiracy",
+        "suppressed",
+        "secret they don't",
+        "unbelievable",
+        "expose",
+    ]
+    hits = [marker for marker in markers if marker in text.lower()]
+    capital_words = sum(1 for word in words if word.isupper() and len(word) > 1)
+    capital_ratio = (capital_words / max(1, len(words))) * 100.0
+    score = min(
+        98.7,
+        3.0
+        + (((digest >> 8) % 70) / 10)
+        + (len(hits) * 20.0)
+        + min(25.0, capital_ratio * 1.5),
+    )
+    details = {
+        "verdict": (
+            "High Risk"
+            if score > 60
+            else ("Moderate Risk" if score > 30 else "Low Risk")
+        ),
+        "detected_markers": hits,
+        "capitalization_ratio_percent": round(capital_ratio, 1),
+        "unverified_claims_count": len(hits),
+    }
+    return score, details
+
+
+@shared_task
+def run_detector_analysis(
+    job_id,
+    user_id,
+    text,
+    ai_enabled,
+    misinfo_enabled,
+    feature_flags=None,
+):
+    try:
         job = AnalysisJob.objects.get(job_id=job_id)
         job.status = 'PROCESSING'
         job.save()
 
-        # 1. Linguistic Basic Metrics
-        words = text.split()
-        word_count = len(words)
-        char_count = len(text)
-        
-        # Split by sentences (dot, exclamation, question mark)
-        sentences = re.split(r'[.!?]+', text)
-        sentences = [s.strip() for s in sentences if s.strip()]
-        sentence_count = max(1, len(sentences))
-        avg_sentence_len = round(word_count / sentence_count, 1)
-
-        # 2. Mock AI Content Detection Algorithm (Buzzword & structural analysis)
-        # AI models love transition words and phrases like "delve", "testament", "furthermore", "in conclusion"
-        ai_markers = ["delve", "testament", "furthermore", "moreover", "in conclusion", "pivotal", "demystify", "beacon"]
-        ai_hits = [w for w in ai_markers if w in text.lower()]
-        
-        # Use a stable text-derived offset so the same text always receives the
-        # same result. This avoids visibly changing scores between scans.
+        features = feature_flags or {}
+        metrics = _text_metrics(text)
         digest = int(hashlib.sha256(text.encode('utf-8')).hexdigest()[:8], 16)
-        stable_offset = (digest % 80) / 10
-        base_ai = 8.0 + stable_offset
-        marker_weight = len(ai_hits) * 15.0
-        sentence_uniformity = max(0.0, 15.0 - abs(avg_sentence_len - 20.0))
-        ai_score = min(99.4, base_ai + marker_weight + sentence_uniformity) if ai_enabled else 0.0
 
-        # Predictability indicator (Perplexity) - lower perplexity indicates higher AI probability
+        ai_result = _ai_prediction(text, ai_enabled, features, metrics, digest)
+        ai_score = ai_result["ai_score"]
+
+        stable_offset = (digest % 80) / 10
         perplexity = max(10, round(120.0 - (ai_score * 0.8) + (stable_offset - 4), 1))
-        
-        # Variance in sentence length (Burstiness) - AI text is highly uniform (low burstiness)
-        sentence_lengths = [len(s.split()) for s in sentences]
-        if len(sentence_lengths) > 1:
-            mean = sum(sentence_lengths) / len(sentence_lengths)
-            variance = sum((x - mean) ** 2 for x in sentence_lengths) / len(sentence_lengths)
-            burstiness = round(min(100.0, (variance ** 0.5) * 5), 1)
-        else:
-            burstiness = 10.0
-            
+        burstiness = metrics["burstiness_score"]
         if ai_enabled:
-            # Adjust burstiness down if AI score is high
             burstiness = max(5.0, round(burstiness - (ai_score * 0.3), 1))
 
-        # 3. Mock Misinformation Signals Algorithm
-        # Misinfo indicators: excessive caps, clickbait terms
-        misinfo_markers = ["shocking", "miracle", "conspiracy", "suppressed", "secret they don't", "unbelievable", "expose"]
-        misinfo_hits = [w for w in misinfo_markers if w in text.lower()]
-        
-        capital_words = sum(1 for w in words if w.isupper() and len(w) > 1)
-        capital_ratio = (capital_words / max(1, word_count)) * 100.0
+        misinfo_score, misinfo_details = _misinformation_prediction(
+            text,
+            metrics["words"],
+            misinfo_enabled,
+            digest,
+        )
 
-        base_misinfo = 3.0 + ((digest >> 8) % 70) / 10
-        marker_misinfo_weight = len(misinfo_hits) * 20.0
-        caps_weight = min(25.0, capital_ratio * 1.5)
-        misinfo_score = min(98.7, base_misinfo + marker_misinfo_weight + caps_weight) if misinfo_enabled else 0.0
+        ai_details = {
+            "verdict": ai_result["verdict"],
+            "model_used": ai_result["model_name"],
+            "chunks_analyzed": ai_result["chunks_analyzed"],
+        }
+        if ai_result.get("fallback_reason"):
+            ai_details["fallback_reason"] = ai_result["fallback_reason"]
+        if features.get("deep_scan"):
+            ai_details.update(
+                {
+                    "ai_probability": round(ai_result["ai_probability"], 4),
+                    "human_probability": round(ai_result["human_probability"], 4),
+                    "confidence_percent": round(max(
+                        ai_result["ai_probability"],
+                        ai_result["human_probability"],
+                    ) * 100, 1),
+                    "ai_threshold": ai_result.get("ai_threshold"),
+                }
+            )
+        if features.get("detailed_reports"):
+            ai_details.update(
+                {
+                    "detected_markers": ai_result.get("detected_markers", []),
+                    "perplexity_score": perplexity,
+                    "burstiness_score": burstiness,
+                }
+            )
 
-        # Detailed breakdown payload
+        if not features.get("advanced_misinformation"):
+            misinfo_details = {"verdict": misinfo_details["verdict"]}
+
         detailed_breakdown = {
             "metrics": {
-                "word_count": word_count,
-                "character_count": char_count,
-                "sentence_count": sentence_count,
-                "avg_sentence_length": avg_sentence_len
+                "word_count": metrics["word_count"],
+                "character_count": metrics["character_count"],
+                "sentence_count": metrics["sentence_count"],
+                "avg_sentence_length": metrics["avg_sentence_length"],
             },
-            "ai_details": {
-                "detected_markers": ai_hits,
-                "perplexity_score": perplexity,
-                "burstiness_score": burstiness,
-                "verdict": "Likely AI-Generated" if ai_score > 60 else ("Uncertain" if ai_score > 30 else "Likely Human-Written")
-            },
-            "misinfo_details": {
-                "detected_markers": misinfo_hits,
-                "capitalization_ratio_percent": round(capital_ratio, 1),
-                "unverified_claims_count": len(misinfo_hits),
-                "verdict": "High Risk" if misinfo_score > 60 else ("Moderate Risk" if misinfo_score > 30 else "Low Risk")
-            }
+            "ai_details": ai_details,
+            "misinfo_details": misinfo_details,
+            "features": features,
         }
 
-        # Create the permanent record
         record = AnalysisRecord(
             user_id=user_id,
             input_text=text,
             ai_score=round(ai_score, 1),
             misinformation_score=round(misinfo_score, 1),
-            detailed_breakdown=detailed_breakdown
+            detailed_breakdown=detailed_breakdown,
         )
         record.save()
 
-        # Update the job record
         job.status = 'SUCCESS'
         job.result_record_id = str(record.id)
         job.save()
@@ -110,7 +246,6 @@ def run_detector_analysis(job_id, user_id, text, ai_enabled, misinfo_enabled):
         return str(record.id)
 
     except Exception as exc:
-        # Mark job as failed in case of unhandled error
         try:
             job = AnalysisJob.objects.get(job_id=job_id)
             job.status = 'FAILED'

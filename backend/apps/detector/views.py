@@ -91,6 +91,7 @@ class AnalyzeView(APIView):
                             text,
                             ai_enabled,
                             misinfo_enabled,
+                            access["features"],
                         ],
                         priority=access["queue_priority"],
                     )
@@ -102,7 +103,8 @@ class AnalyzeView(APIView):
                         user_id,
                         text,
                         ai_enabled,
-                        misinfo_enabled
+                        misinfo_enabled,
+                        access["features"],
                     )
             else:
                 # No Redis — run synchronously
@@ -111,7 +113,8 @@ class AnalyzeView(APIView):
                     user_id,
                     text,
                     ai_enabled,
-                    misinfo_enabled
+                    misinfo_enabled,
+                    access["features"],
                 )
 
             payload = {

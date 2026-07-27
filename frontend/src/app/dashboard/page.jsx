@@ -6,15 +6,6 @@ import {
   Upload,
   AlertCircle,
   ShieldCheck,
-  Clipboard,
-  Undo,
-  Redo,
-  Type,
-  Bold,
-  Italic,
-  Underline,
-  Link,
-  MoreVertical,
   Check,
   Plus,
   Minus,
@@ -367,38 +358,6 @@ const Detector = () => {
     setError('');
     const textVal = e.target.innerText || '';
     checkAndResetResults(textVal);
-  };
-
-  const handleFormat = (command, value = null) => {
-    if (!editorRef.current) return;
-    editorRef.current.focus();
-
-    if (command === 'createLink') {
-      const url = prompt('Enter the link URL:');
-      if (url) {
-        document.execCommand(command, false, url);
-      }
-    } else {
-      document.execCommand(command, false, value);
-    }
-
-    const textVal = editorRef.current.innerText || '';
-    checkAndResetResults(textVal);
-  };
-
-  const handlePasteClick = async () => {
-    if (!editorRef.current) return;
-    editorRef.current.focus();
-    try {
-      const clipboardText = await navigator.clipboard.readText();
-      if (clipboardText) {
-        document.execCommand('insertText', false, clipboardText);
-        const textVal = editorRef.current.innerText || '';
-        checkAndResetResults(textVal);
-      }
-    } catch {
-      showToast("Please use Ctrl+V to paste or grant clipboard permission to the browser.", "error");
-    }
   };
 
   const handleAnalyze = async () => {
@@ -786,7 +745,7 @@ const Detector = () => {
                   />
                 </div>
 
-                {/* Toolbar + Upload + Word Count */}
+                {/* Upload + Word Count */}
                 <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
 
                   {/* File Upload Trigger */}
@@ -806,85 +765,6 @@ const Detector = () => {
                       className="hidden"
                       onChange={handleFileUpload}
                     />
-                  </div>
-
-                  {/* Functional Rich-Text Formatting Toolbar */}
-                  <div className="flex w-full items-center gap-1 overflow-x-auto rounded-xl border border-stone-200/60 bg-stone-50/50 px-2 py-2 shadow-sm sm:w-auto sm:gap-2 sm:px-3.5">
-                    <button
-                      type="button"
-                      onClick={handlePasteClick}
-                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
-                      title="Paste from clipboard"
-                    >
-                      <Clipboard size={22} />
-                    </button>
-                    <div className="w-px h-6 bg-stone-200 mx-2"></div>
-                    <button
-                      type="button"
-                      onClick={() => handleFormat('undo')}
-                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
-                      title="Undo"
-                    >
-                      <Undo size={22} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleFormat('redo')}
-                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
-                      title="Redo"
-                    >
-                      <Redo size={22} />
-                    </button>
-                    <div className="w-px h-6 bg-stone-200 mx-2"></div>
-                    <button
-                      type="button"
-                      onClick={() => showToast('Text formatting options', 'success')}
-                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
-                      title="Text Size"
-                    >
-                      <Type size={22} />
-                    </button>
-                    <div className="w-px h-6 bg-stone-200 mx-2"></div>
-                    <button
-                      type="button"
-                      onClick={() => handleFormat('bold')}
-                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors font-bold"
-                      title="Bold"
-                    >
-                      <Bold size={22} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleFormat('italic')}
-                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors italic"
-                      title="Italic"
-                    >
-                      <Italic size={22} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleFormat('underline')}
-                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors underline"
-                      title="Underline"
-                    >
-                      <Underline size={22} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleFormat('createLink')}
-                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
-                      title="Insert Link"
-                    >
-                      <Link size={22} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => showToast('More editing options', 'success')}
-                      className="p-2.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
-                      title="More options"
-                    >
-                      <MoreVertical size={22} />
-                    </button>
                   </div>
 
                   {/* Word Count Pill */}

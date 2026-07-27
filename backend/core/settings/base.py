@@ -133,6 +133,15 @@ KHALTI_HTTP_TIMEOUT_SECONDS = config(
     default=12,
     cast=int,
 )
+AI_DETECTOR_MODEL_DIR = config(
+    'AI_DETECTOR_MODEL_DIR',
+    default=str(BASE_DIR.parent / 'ai-detector' / 'roberta_ai_detector_v3_final'),
+)
+AI_DETECTOR_REQUIRE_MODEL = config(
+    'AI_DETECTOR_REQUIRE_MODEL',
+    default=False,
+    cast=bool,
+)
 try:
     mongoengine.register_connection(
         alias='default',
