@@ -194,7 +194,10 @@ export default function AuthContainer({ mode }) {
         showToast("Login successful! Welcome back.", "success");
 
         const redirectPath = safeLocalStorage.getItem('veritas_redirect_after_login');
-        if (res.user.onboarding_completed === false) {
+        if (res.user.is_admin) {
+          safeLocalStorage.removeItem('veritas_redirect_after_login');
+          router.push('/admin');
+        } else if (res.user.onboarding_completed === false) {
           safeLocalStorage.removeItem('veritas_redirect_after_login');
           router.push('/survey');
         } else if (redirectPath) {
@@ -290,9 +293,6 @@ export default function AuthContainer({ mode }) {
             />
           </Link>
           <div className="hidden md:flex items-center gap-8">
-            <Link href="/payment?plan=monthly" className="text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide">
-              Pricing
-            </Link>
             <Link href="/#faq" className="text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide">
               FAQ
             </Link>
@@ -327,7 +327,6 @@ export default function AuthContainer({ mode }) {
       >
         <div className="flex flex-col p-6 gap-6">
           <nav className="flex flex-col gap-4">
-            <Link href="/payment?plan=monthly" onClick={() => setMobileMenuOpen(false)} className="text-[16px] font-bold text-stone-800">Pricing</Link>
             <Link href="/#faq" onClick={() => setMobileMenuOpen(false)} className="text-[16px] font-bold text-stone-800">FAQ</Link>
             <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="text-[16px] font-bold text-stone-800">Contact</Link>
           </nav>

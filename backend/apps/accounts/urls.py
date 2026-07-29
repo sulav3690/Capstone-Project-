@@ -7,7 +7,6 @@ from .views import (
     MeView,
     PasswordChangeView,
     AdminStatsView,
-    AdminUserView,
     UserFeedbackView,
     OnboardingSurveyView
 )
@@ -20,7 +19,6 @@ urlpatterns = [
     path('me/', MeView.as_view(), name='user_profile'),
     path('password/', PasswordChangeView.as_view(), name='password_change'),
     path('admin-stats/', AdminStatsView.as_view(), name='admin_stats'),
-    path('admin-users/<str:user_id>/', AdminUserView.as_view(), name='admin_user_update'),
     path('feedback/', UserFeedbackView.as_view(), name='user_feedback'),
     path('onboarding-survey/', OnboardingSurveyView.as_view(), name='onboarding_survey'),
 ]

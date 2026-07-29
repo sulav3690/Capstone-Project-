@@ -5,6 +5,7 @@ from celery import shared_task
 from django.conf import settings
 
 from .ai_model import DetectorModelUnavailable, predict_ai
+from .misinfo_model import MisinformationModelUnavailable, predict_misinformation
 from .models import AnalysisJob, AnalysisRecord
 
 
@@ -112,7 +113,7 @@ def _ai_prediction(text, ai_enabled, features, metrics, digest):
     return prediction
 
 
-def _misinformation_prediction(text, words, misinfo_enabled, digest):
+def _fallback_misinformation_prediction(text, words, misinfo_enabled, digest):
     if not misinfo_enabled:
         return 0.0, {
             "verdict": "Misinformation detection disabled",
@@ -153,6 +154,64 @@ def _misinformation_prediction(text, words, misinfo_enabled, digest):
     return score, details
 
 
+def _misinformation_prediction(text, words, misinfo_enabled, features, digest):
+    if not misinfo_enabled:
+        return _fallback_misinformation_prediction(
+            text,
+            words,
+            misinfo_enabled,
+            digest,
+        )
+
+    max_claims = 4
+    if features.get("advanced_misinformation"):
+        max_claims = 8
+    if features.get("detailed_reports"):
+        max_claims = 12
+
+    try:
+        prediction = predict_misinformation(text, max_claims=max_claims)
+        details = {
+            "verdict": prediction["verdict"],
+            "model_used": prediction["model_name"],
+            "claims_checked": prediction["claims_checked"],
+            "unverified_claims_count": sum(
+                1
+                for claim in prediction["claims"]
+                if claim["label"] in {"CONTRADICTED", "NOT_ENOUGH_EVIDENCE"}
+            ),
+            "contradicted_count": sum(
+                1 for claim in prediction["claims"] if claim["label"] == "CONTRADICTED"
+            ),
+            "not_enough_evidence_count": sum(
+                1
+                for claim in prediction["claims"]
+                if claim["label"] == "NOT_ENOUGH_EVIDENCE"
+            ),
+            "top_claim_flags": [
+                claim
+                for claim in prediction["claims"]
+                if claim["label"] in {"CONTRADICTED", "NOT_ENOUGH_EVIDENCE"}
+            ][:3],
+        }
+        return prediction["score"], details
+    except MisinformationModelUnavailable:
+        if settings.MISINFORMATION_REQUIRE_MODEL:
+            raise
+    except Exception:
+        if settings.MISINFORMATION_REQUIRE_MODEL:
+            raise
+
+    score, details = _fallback_misinformation_prediction(
+        text,
+        words,
+        misinfo_enabled,
+        digest,
+    )
+    details["fallback_reason"] = "Misinformation RoBERTa model is not available locally."
+    return score, details
+
+
 @shared_task
 def run_detector_analysis(
     job_id,
@@ -184,6 +243,7 @@ def run_detector_analysis(
             text,
             metrics["words"],
             misinfo_enabled,
+            features,
             digest,
         )
 

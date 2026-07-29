@@ -9,7 +9,6 @@ import api from '../utils/api';
 import safeLocalStorage from '../utils/safeLocalStorage';
 
 const navigationItems = [
-  { label: 'Pricing', href: '/payment?plan=monthly', matches: (pathname) => pathname === '/payment' },
   { label: 'FAQ', href: '/#faq', matches: (pathname, hash) => pathname === '/' && hash === '#faq' },
   { label: 'Contact', href: '/contact', matches: (pathname) => pathname === '/contact' },
 ];

@@ -1,0 +1,31 @@
+evidence,claim,expected,category,prediction,confidence,correct
+Earth orbits the Sun once every 365.25 days.,Earth revolves around the Sun.,SUPPORTED,support,SUPPORTED,0.9919,True
+Aspirin irreversibly inhibits platelet cyclooxygenase and reduces platelet aggregation.,Aspirin inhibits platelet aggregation.,SUPPORTED,support,SUPPORTED,0.9934,True
+Water freezes at 0 degrees Celsius under standard atmospheric pressure.,Water freezes at zero degrees Celsius at standard pressure.,SUPPORTED,support,SUPPORTED,0.992,True
+DNA carries hereditary information in living organisms.,DNA contains genetic information.,SUPPORTED,support,SUPPORTED,0.9895,True
+Insulin lowers blood glucose by promoting cellular glucose uptake.,Insulin helps lower blood glucose.,SUPPORTED,support,SUPPORTED,0.9911,True
+The randomized trial found a significant reduction in symptoms compared with placebo.,The treatment reduced symptoms compared with placebo.,SUPPORTED,support,SUPPORTED,0.9013,True
+Photosynthesis converts light energy into chemical energy.,Photosynthesis stores light energy as chemical energy.,SUPPORTED,support,SUPPORTED,0.937,True
+Antibiotics act against bacteria and do not treat viral infections.,Antibiotics can treat bacterial infections.,SUPPORTED,support,CONTRADICTED,0.9328,False
+The Moon's gravity contributes to ocean tides on Earth.,The Moon influences Earth's tides.,SUPPORTED,support,SUPPORTED,0.9908,True
+Smoking increases the risk of lung cancer.,Smoking is a risk factor for lung cancer.,SUPPORTED,support,SUPPORTED,0.9923,True
+No authorized COVID-19 vaccine contains tracking microchips.,Authorized COVID-19 vaccines contain tracking microchips.,CONTRADICTED,contradiction,CONTRADICTED,0.9385,True
+The trial found no statistically significant improvement over placebo.,The treatment significantly improved outcomes over placebo.,CONTRADICTED,contradiction,CONTRADICTED,0.9772,True
+The Earth takes approximately 365 days to orbit the Sun.,The Earth orbits the Sun once every 24 hours.,CONTRADICTED,contradiction,CONTRADICTED,0.9148,True
+The sample contained 120 participants.,"The sample contained more than 1,000 participants.",CONTRADICTED,contradiction,CONTRADICTED,0.9965,True
+The intervention increased average blood pressure.,The intervention decreased average blood pressure.,CONTRADICTED,contradiction,CONTRADICTED,0.9983,True
+The drug showed greater toxicity than the control.,The drug was less toxic than the control.,CONTRADICTED,contradiction,CONTRADICTED,0.9756,True
+Researchers found an association but explicitly could not establish causality.,The researchers proved a causal relationship.,CONTRADICTED,contradiction,CONTRADICTED,0.9917,True
+The experiment was conducted only in mice.,The experiment was conducted only in humans.,CONTRADICTED,contradiction,CONTRADICTED,0.9983,True
+Global mean temperature increased during the measured period.,Global mean temperature decreased during the measured period.,CONTRADICTED,contradiction,CONTRADICTED,0.9989,True
+The mutation reduced expression of the protein.,The mutation increased expression of the protein.,CONTRADICTED,contradiction,CONTRADICTED,0.9983,True
+The Eiffel Tower is a wrought-iron tower in Paris.,Water freezes at zero degrees Celsius at standard pressure.,NOT_ENOUGH_EVIDENCE,unrelated,CONTRADICTED,0.9941,False
+Jupiter is the largest planet in the Solar System.,Aspirin reduces platelet aggregation.,NOT_ENOUGH_EVIDENCE,unrelated,NOT_ENOUGH_EVIDENCE,0.997,True
+The study detected an association between exercise and mood.,Exercise directly causes recovery from clinical depression.,NOT_ENOUGH_EVIDENCE,causal_overreach,SUPPORTED,0.543,False
+The drug reduced tumors in mice.,The drug cures cancer in humans.,NOT_ENOUGH_EVIDENCE,scope_overreach,NOT_ENOUGH_EVIDENCE,0.8396,True
+The experiment showed reduced viral replication in cultured cells.,The compound prevents infection in patients.,NOT_ENOUGH_EVIDENCE,scope_overreach,NOT_ENOUGH_EVIDENCE,0.9907,True
+The survey studied adults aged 18 to 25.,The finding applies equally to elderly adults.,NOT_ENOUGH_EVIDENCE,population_overreach,NOT_ENOUGH_EVIDENCE,0.9682,True
+A climate model projects greater rainfall under one future scenario.,Rainfall has already increased in every country.,NOT_ENOUGH_EVIDENCE,temporal_overreach,NOT_ENOUGH_EVIDENCE,0.895,True
+The study measured a biomarker for two weeks.,The intervention extends human lifespan.,NOT_ENOUGH_EVIDENCE,outcome_overreach,NOT_ENOUGH_EVIDENCE,0.9924,True
+The review discusses several hypotheses about sleep.,One hypothesis has been conclusively proven.,NOT_ENOUGH_EVIDENCE,certainty_overreach,NOT_ENOUGH_EVIDENCE,0.9911,True
+Researchers observed antibodies after vaccination.,Vaccination completely blocks all transmission.,NOT_ENOUGH_EVIDENCE,strength_overreach,CONTRADICTED,0.8106,False

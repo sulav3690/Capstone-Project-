@@ -8,17 +8,151 @@ import {
   ShieldCheck,
   Search,
   RefreshCw,
-  UserCheck,
   AlertCircle,
   Calendar,
   CheckCircle,
   Database,
-  ArrowUpDown
+  ArrowUpDown,
+  PieChart,
+  TrendingUp,
+  Globe2
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import { useToast } from '../../components/ToastProvider';
 import safeLocalStorage from '../../utils/safeLocalStorage';
 import api from '../../utils/api';
+
+const chartColors = ['#1FA463', '#7B82FF', '#F59E0B', '#EF4444', '#14B8A6', '#A855F7'];
+
+function percentOf(value, total) {
+  return total > 0 ? Math.round((value / total) * 100) : 0;
+}
+
+function LineChart({ data }) {
+  if (!data?.length) {
+    return <div className="h-56 flex items-center justify-center text-sm text-stone-400">No scan trend data yet.</div>;
+  }
+
+  const width = 640;
+  const height = 220;
+  const padding = 28;
+  const maxScore = Math.max(100, ...data.flatMap((item) => [item.avg_ai_score || 0, item.avg_misinformation_score || 0]));
+  const xStep = data.length > 1 ? (width - padding * 2) / (data.length - 1) : 0;
+  const point = (item, index, key) => {
+    const x = padding + xStep * index;
+    const y = height - padding - ((item[key] || 0) / maxScore) * (height - padding * 2);
+    return `${x},${y}`;
+  };
+  const aiPoints = data.map((item, index) => point(item, index, 'avg_ai_score')).join(' ');
+  const misinfoPoints = data.map((item, index) => point(item, index, 'avg_misinformation_score')).join(' ');
+
+  return (
+    <div className="overflow-x-auto">
+      <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[520px] w-full h-56" role="img" aria-label="AI and misinformation score trend">
+        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#E7E5E4" />
+        <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="#E7E5E4" />
+        {[25, 50, 75, 100].map((score) => {
+          const y = height - padding - (score / maxScore) * (height - padding * 2);
+          return (
+            <g key={score}>
+              <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#F5F5F4" />
+              <text x={4} y={y + 4} className="fill-stone-400 text-[10px]">{score}%</text>
+            </g>
+          );
+        })}
+        <polyline points={aiPoints} fill="none" stroke="#7B82FF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        <polyline points={misinfoPoints} fill="none" stroke="#EF4444" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        {data.map((item, index) => (
+          <g key={`${item.date}-${index}`}>
+            <circle cx={point(item, index, 'avg_ai_score').split(',')[0]} cy={point(item, index, 'avg_ai_score').split(',')[1]} r="4" fill="#7B82FF" />
+            <circle cx={point(item, index, 'avg_misinformation_score').split(',')[0]} cy={point(item, index, 'avg_misinformation_score').split(',')[1]} r="4" fill="#EF4444" />
+            <text x={padding + xStep * index - 18} y={height - 6} className="fill-stone-400 text-[10px]">
+              {new Date(item.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+            </text>
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function DonutChart({ data }) {
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+
+  if (!total) {
+    return <div className="h-56 flex items-center justify-center text-sm text-stone-400">No role data yet.</div>;
+  }
+
+  const segments = data.reduce((items, item, index) => {
+    const share = (item.value / total) * 100;
+    const offset = 25 - items.cumulative;
+    return {
+      cumulative: items.cumulative + share,
+      values: [...items.values, { ...item, share, offset, color: chartColors[index % chartColors.length] }],
+    };
+  }, { cumulative: 0, values: [] }).values;
+
+  return (
+    <div className="flex flex-col sm:flex-row items-center gap-6">
+      <svg viewBox="0 0 42 42" className="h-44 w-44 shrink-0" role="img" aria-label="User role distribution">
+        <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#F5F5F4" strokeWidth="8" />
+        {segments.map((item) => (
+          <circle
+            key={item.label}
+            cx="21"
+            cy="21"
+            r="15.915"
+            fill="transparent"
+            stroke={item.color}
+            strokeWidth="8"
+            strokeDasharray={`${item.share} ${100 - item.share}`}
+            strokeDashoffset={item.offset}
+          />
+        ))}
+        <text x="21" y="20" textAnchor="middle" className="fill-stone-900 text-[5px] font-bold">{total}</text>
+        <text x="21" y="25" textAnchor="middle" className="fill-stone-400 text-[3px] font-semibold">users</text>
+      </svg>
+      <div className="w-full space-y-3">
+        {data.map((item, index) => (
+          <div key={item.label} className="flex items-center justify-between gap-4 text-sm">
+            <span className="flex items-center gap-2 font-semibold text-stone-700 capitalize">
+              <span className="h-3 w-3 rounded-full" style={{ backgroundColor: chartColors[index % chartColors.length] }} />
+              {item.label}
+            </span>
+            <span className="text-stone-500">{item.value} ({percentOf(item.value, total)}%)</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SourceBars({ data }) {
+  const max = Math.max(1, ...data.map((item) => item.value));
+
+  if (!data?.length) {
+    return <div className="h-56 flex items-center justify-center text-sm text-stone-400">No survey sources logged yet.</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {data.slice(0, 6).map((item, index) => (
+        <div key={item.label} className="space-y-1.5">
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span className="font-semibold text-stone-700">{item.label}</span>
+            <span className="text-stone-500">{item.value}</span>
+          </div>
+          <div className="h-2.5 rounded-full bg-stone-100 overflow-hidden">
+            <div
+              className="h-full rounded-full"
+              style={{ width: `${Math.max(8, (item.value / max) * 100)}%`, backgroundColor: chartColors[index % chartColors.length] }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -30,9 +164,15 @@ export default function AdminDashboard() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Data states
-  const [stats, setStats] = useState({ total_users: 0, total_scans: 0 });
+  const [stats, setStats] = useState({ total_users: 0, total_scans: 0, total_surveys: 0 });
   const [users, setUsers] = useState([]);
   const [scans, setScans] = useState([]);
+  const [surveyLogs, setSurveyLogs] = useState([]);
+  const [analytics, setAnalytics] = useState({
+    source_counts: [],
+    role_counts: [],
+    score_trends: [],
+  });
   const [databaseStatus, setDatabaseStatus] = useState('checking');
 
   // Search & Filter states
@@ -53,9 +193,11 @@ export default function AdminDashboard() {
         api.get('/api/auth/admin-stats/'),
         api.get('/api/health/').catch(() => null),
       ]);
-      setStats(response.stats || { total_users: 0, total_scans: 0 });
+      setStats(response.stats || { total_users: 0, total_scans: 0, total_surveys: 0 });
       setUsers(response.users || []);
       setScans(response.scans || []);
+      setSurveyLogs(response.survey_logs || []);
+      setAnalytics(response.analytics || { source_counts: [], role_counts: [], score_trends: [] });
       setDatabaseStatus(health?.services?.mongodb === 'ok' ? 'connected' : 'unavailable');
     } catch (err) {
       showToast(err.message || "Error loading admin stats from backend.", "error");
@@ -80,38 +222,12 @@ export default function AdminDashboard() {
         setSubscriptionPlan(response.user.subscription_plan || 'Free');
         await fetchData();
       } catch {
-        router.replace('/login');
+          safeLocalStorage.setItem('veritas_redirect_after_login', '/admin');
+          router.replace('/login');
       }
     };
     verifyAdmin();
   }, [fetchData, router, showToast]);
-
-  const handleAdminLogout = async () => {
-    try {
-      await api.post('/api/auth/logout/');
-    } catch {
-      // Local session data must still be cleared if the server is unavailable.
-    }
-    safeLocalStorage.removeItem('veritas_display_name');
-    safeLocalStorage.removeItem('veritas_email');
-    safeLocalStorage.removeItem('veritas_is_admin');
-    router.push('/login');
-  };
-
-  const toggleUserAdmin = async (userId, currentIsAdmin) => {
-    try {
-      const updatedIsAdmin = !currentIsAdmin;
-      const response = await api.patch(`/api/auth/admin-users/${userId}/`, {
-        is_admin: updatedIsAdmin,
-      });
-      setUsers((currentUsers) => currentUsers.map(
-        (user) => user.id === userId ? response.user : user
-      ));
-      showToast(response.message || 'User permissions updated.', "success");
-    } catch (err) {
-      showToast(err.message || "Failed to update administrator status.", "error");
-    }
-  };
 
   // Sort and Filter Logic
   const handleSort = (field) => {
@@ -160,11 +276,12 @@ export default function AdminDashboard() {
         activeTab="admin"
         displayName={displayName}
         subscriptionPlan={subscriptionPlan}
+        adminMode
       />
 
       <main className="flex-1 w-full px-4 py-10 md:px-8 lg:px-12 overflow-y-auto">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-extrabold text-stone-900 tracking-tight flex items-center gap-3">
               <ShieldCheck className="text-[#1FA463]" size={32} />
@@ -176,16 +293,10 @@ export default function AdminDashboard() {
           <button
             onClick={fetchData}
             disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-xl shadow-sm text-sm hover:bg-stone-800 transition disabled:opacity-50 font-medium"
+            className="md:mt-1 md:mr-1 flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-xl shadow-sm text-sm hover:bg-stone-800 transition disabled:opacity-50 font-medium self-start md:self-auto"
           >
             <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
             {refreshing ? 'Refreshing...' : 'Refresh Data'}
-          </button>
-          <button
-            onClick={handleAdminLogout}
-            className="px-4 py-2 border border-stone-200 text-stone-700 rounded-xl shadow-sm text-sm hover:bg-white transition font-medium"
-          >
-            Logout
           </button>
         </div>
 
@@ -199,7 +310,7 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
               {/* Card 1: Users */}
               <div className="bg-white border border-stone-200/80 rounded-2xl p-6 shadow-sm flex items-center gap-5 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-green-500/5 rounded-bl-full transition-transform group-hover:scale-110" />
@@ -224,7 +335,19 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Card 3: System Status */}
+              {/* Card 3: Surveys */}
+              <div className="bg-white border border-stone-200/80 rounded-2xl p-6 shadow-sm flex items-center gap-5 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-bl-full transition-transform group-hover:scale-110" />
+                <div className="p-4 rounded-xl bg-amber-50 text-amber-600">
+                  <Globe2 size={24} />
+                </div>
+                <div>
+                  <span className="text-stone-400 text-sm font-semibold tracking-wide uppercase">Survey Logs</span>
+                  <h3 className="text-3xl font-bold text-stone-900 mt-1">{stats.total_surveys || 0}</h3>
+                </div>
+              </div>
+
+              {/* Card 4: System Status */}
               <div className="bg-white border border-stone-200/80 rounded-2xl p-6 shadow-sm flex items-center gap-5 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-bl-full transition-transform group-hover:scale-110" />
                 <div className="p-4 rounded-xl bg-purple-50 text-purple-600">
@@ -238,6 +361,69 @@ export default function AdminDashboard() {
                     {databaseStatus === 'connected' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
                     {databaseStatus === 'connected' ? 'Connected' : databaseStatus === 'checking' ? 'Checking...' : 'Unavailable'}
                   </h3>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-8 mb-8">
+              <div className="bg-white border border-stone-200/80 rounded-2xl shadow-sm p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+                  <div>
+                    <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2">
+                      <TrendingUp size={19} className="text-[#7B82FF]" />
+                      AI Detection and Misinformation Trend
+                    </h2>
+                    <p className="text-xs text-stone-400 mt-1">Daily average score from recent user analysis logs.</p>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs font-bold">
+                    <span className="flex items-center gap-1.5 text-stone-500"><span className="h-2.5 w-2.5 rounded-full bg-[#7B82FF]" /> AI</span>
+                    <span className="flex items-center gap-1.5 text-stone-500"><span className="h-2.5 w-2.5 rounded-full bg-red-500" /> Misinfo</span>
+                  </div>
+                </div>
+                <LineChart data={analytics.score_trends || []} />
+              </div>
+
+              <div className="bg-white border border-stone-200/80 rounded-2xl shadow-sm p-6">
+                <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2 mb-5">
+                  <PieChart size={19} className="text-[#1FA463]" />
+                  Users by Role
+                </h2>
+                <DonutChart data={analytics.role_counts || []} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-[0.9fr_1.1fr] gap-8 mb-8">
+              <div className="bg-white border border-stone-200/80 rounded-2xl shadow-sm p-6">
+                <h2 className="text-lg font-bold text-stone-900 mb-1">Visit Source Summary</h2>
+                <p className="text-xs text-stone-400 mb-5">Where people said they found the system.</p>
+                <SourceBars data={analytics.source_counts || []} />
+              </div>
+
+              <div className="bg-white border border-stone-200/80 rounded-2xl shadow-sm p-6">
+                <h2 className="text-lg font-bold text-stone-900 mb-1">Recent Survey Logs</h2>
+                <p className="text-xs text-stone-400 mb-5">Onboarding and feedback entries grouped by source and role.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
+                  {surveyLogs.length === 0 ? (
+                    <div className="md:col-span-2 py-8 text-center text-stone-400 text-sm">
+                      No survey activity logged yet.
+                    </div>
+                  ) : (
+                    surveyLogs.slice(0, 12).map((survey) => (
+                      <div key={`${survey.type}-${survey.id}`} className="border border-stone-100 rounded-xl p-3.5 bg-stone-50/20">
+                        <div className="flex items-center justify-between gap-3 mb-2">
+                          <span className="text-[11px] font-black uppercase tracking-wide text-[#1FA463]">{survey.type}</span>
+                          <span className="text-[11px] text-stone-400">
+                            {survey.created_at ? new Date(survey.created_at).toLocaleDateString() : 'N/A'}
+                          </span>
+                        </div>
+                        <div className="text-sm font-bold text-stone-800 capitalize">{survey.role || 'Unknown role'}</div>
+                        <div className="text-xs text-stone-500 mt-1">Source: {survey.source || 'Unknown'}</div>
+                        {survey.purpose && (
+                          <div className="text-xs text-stone-400 mt-1 line-clamp-2">{survey.purpose}</div>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -286,7 +472,9 @@ export default function AdminDashboard() {
                         <th className="pb-3 cursor-pointer" onClick={() => handleSort('subscription_plan')}>
                           <span className="flex items-center gap-1">Plan <ArrowUpDown size={12} /></span>
                         </th>
-                        <th className="pb-3">Role</th>
+                        <th className="pb-3 cursor-pointer" onClick={() => handleSort('role')}>
+                          <span className="flex items-center gap-1">User Role <ArrowUpDown size={12} /></span>
+                        </th>
                         <th className="pb-3 cursor-pointer text-right" onClick={() => handleSort('created_at')}>
                           <span className="flex items-center justify-end gap-1">Registered <ArrowUpDown size={12} /></span>
                         </th>
@@ -317,17 +505,9 @@ export default function AdminDashboard() {
                               </span>
                             </td>
                             <td className="py-3.5">
-                              <button
-                                onClick={() => toggleUserAdmin(user.id, user.is_admin)}
-                                className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg border font-semibold transition ${
-                                  user.is_admin
-                                    ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
-                                    : 'bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100'
-                                }`}
-                              >
-                                <UserCheck size={12} />
-                                {user.is_admin ? 'Admin' : 'Make Admin'}
-                              </button>
+                              <span className="text-xs font-bold capitalize text-stone-600">
+                                {user.role || 'other'}
+                              </span>
                             </td>
                             <td className="py-3.5 text-right text-xs text-stone-500 font-medium">
                               {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
@@ -392,6 +572,11 @@ export default function AdminDashboard() {
                                 </span>
                               </div>
                             </div>
+                            {scan.summary && (
+                              <p className="text-[11px] text-stone-400 mt-2 line-clamp-2">
+                                {scan.summary}
+                              </p>
+                            )}
                           </div>
 
                           <div className={`p-1.5 rounded-full ${

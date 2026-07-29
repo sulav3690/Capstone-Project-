@@ -17,3 +17,4 @@ db.sqlite3
 tools/redis/
 ai-detector/
 backend/ml_models/
+*.safetensors

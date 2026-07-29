@@ -142,6 +142,15 @@ AI_DETECTOR_REQUIRE_MODEL = config(
     default=False,
     cast=bool,
 )
+MISINFORMATION_MODEL_DIR = config(
+    'MISINFORMATION_MODEL_DIR',
+    default=str(BASE_DIR.parent / 'misinformation-detector' / 'academic_misinformation_roberta_experiment_C'),
+)
+MISINFORMATION_REQUIRE_MODEL = config(
+    'MISINFORMATION_REQUIRE_MODEL',
+    default=False,
+    cast=bool,
+)
 try:
     mongoengine.register_connection(
         alias='default',

@@ -10,7 +10,7 @@ from datetime import datetime
 from django.conf import settings
 from django.contrib.auth import authenticate
 from mongoengine.errors import DoesNotExist, ValidationError as MongoValidationError
-from .models import OnboardingSurvey, User
+from .models import OnboardingSurvey, User, UserFeedback
 from .serializers import (
     OnboardingSurveySerializer,
     PasswordChangeSerializer,
@@ -314,6 +314,7 @@ class AdminStatsView(APIView):
         # Totals
         total_users = User.objects.count()
         total_scans = AnalysisRecord.objects.count()
+        total_surveys = OnboardingSurvey.objects.count() + UserFeedback.objects.count()
 
         recent_users = list(User.objects.order_by('-created_at')[:50])
         users_list = [
@@ -321,6 +322,7 @@ class AdminStatsView(APIView):
                 "id": str(u.id),
                 "username": u.username,
                 "email": u.email,
+                "role": getattr(u, "role", "") or "other",
                 "subscription_plan": u.subscription_plan,
                 "is_admin": getattr(u, 'is_admin', False),
                 "created_at": u.created_at.isoformat() if u.created_at else None
@@ -343,74 +345,103 @@ class AdminStatsView(APIView):
                 "username": users_by_id.get(s.user_id, "Unknown"),
                 "ai_score": s.ai_score,
                 "misinformation_score": s.misinformation_score,
+                "summary": (s.input_text or "")[:180],
                 "created_at": s.created_at.isoformat() if s.created_at else None
             })
+
+        source_counts = {}
+        survey_role_counts = {}
+        role_counts = {}
+        recent_surveys = []
+
+        def increment(bucket, key):
+            key = (key or "Unknown").strip() or "Unknown"
+            bucket[key] = bucket.get(key, 0) + 1
+
+        for user in User.objects.only("role"):
+            increment(role_counts, getattr(user, "role", "") or "other")
+
+        onboarding_surveys = list(OnboardingSurvey.objects.order_by("-created_at")[:100])
+        for survey in onboarding_surveys:
+            increment(source_counts, survey.heard_about_us)
+            increment(survey_role_counts, survey.role)
+            recent_surveys.append({
+                "id": str(survey.id),
+                "type": "Onboarding",
+                "role": survey.role or "Unknown",
+                "source": survey.heard_about_us or "Unknown",
+                "purpose": survey.purpose or "",
+                "plan_chosen": survey.plan_chosen or "",
+                "created_at": survey.created_at.isoformat() if survey.created_at else None,
+            })
+
+        feedback_surveys = list(UserFeedback.objects.order_by("-created_at")[:100])
+        for feedback in feedback_surveys:
+            increment(source_counts, feedback.hear_about_us)
+            increment(survey_role_counts, feedback.role)
+            recent_surveys.append({
+                "id": str(feedback.id),
+                "type": "Feedback",
+                "role": feedback.role or "Unknown",
+                "source": feedback.hear_about_us or "Unknown",
+                "purpose": feedback.ai_usage or "",
+                "plan_chosen": "",
+                "created_at": feedback.created_at.isoformat() if feedback.created_at else None,
+            })
+
+        recent_surveys.sort(key=lambda item: item["created_at"] or "", reverse=True)
+
+        daily_scores = {}
+        for scan in AnalysisRecord.objects.order_by("-created_at")[:200]:
+            day = scan.created_at.date().isoformat() if scan.created_at else "Unknown"
+            bucket = daily_scores.setdefault(day, {
+                "date": day,
+                "ai_total": 0,
+                "misinformation_total": 0,
+                "count": 0,
+            })
+            bucket["ai_total"] += float(scan.ai_score or 0)
+            bucket["misinformation_total"] += float(scan.misinformation_score or 0)
+            bucket["count"] += 1
+
+        score_trends = [
+            {
+                "date": item["date"],
+                "avg_ai_score": round(item["ai_total"] / item["count"], 2),
+                "avg_misinformation_score": round(item["misinformation_total"] / item["count"], 2),
+                "count": item["count"],
+            }
+            for item in sorted(daily_scores.values(), key=lambda item: item["date"])
+        ]
 
         return Response(
             {
                 "status": "success",
                 "stats": {
                     "total_users": total_users,
-                    "total_scans": total_scans
+                    "total_scans": total_scans,
+                    "total_surveys": total_surveys,
                 },
                 "users": users_list,
-                "scans": scans_list
+                "scans": scans_list,
+                "survey_logs": recent_surveys[:50],
+                "analytics": {
+                    "source_counts": [
+                        {"label": key, "value": value}
+                        for key, value in sorted(source_counts.items(), key=lambda item: item[1], reverse=True)
+                    ],
+                    "survey_role_counts": [
+                        {"label": key, "value": value}
+                        for key, value in sorted(survey_role_counts.items(), key=lambda item: item[1], reverse=True)
+                    ],
+                    "role_counts": [
+                        {"label": key, "value": value}
+                        for key, value in sorted(role_counts.items(), key=lambda item: item[1], reverse=True)
+                    ],
+                    "score_trends": score_trends,
+                },
             },
             status=status.HTTP_200_OK
-        )
-
-
-class AdminUserView(APIView):
-    """Allow an authenticated administrator to change another user's role."""
-
-    permission_classes = [IsAuthenticated]
-
-    def patch(self, request, user_id):
-        if not getattr(request.user, "is_admin", False):
-            return Response(
-                {
-                    "status": "error",
-                    "message": "Permission denied. Admin privileges required.",
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        is_admin = request.data.get("is_admin")
-        if not isinstance(is_admin, bool):
-            return Response(
-                {
-                    "status": "error",
-                    "message": "is_admin must be a boolean value.",
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            target_user = User.objects.get(id=user_id)
-        except (DoesNotExist, MongoValidationError):
-            return Response(
-                {"status": "error", "message": "User not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        if target_user.id == request.user.id and not is_admin:
-            return Response(
-                {
-                    "status": "error",
-                    "message": "You cannot remove your own administrator access.",
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        target_user.is_admin = is_admin
-        target_user.save()
-        return Response(
-            {
-                "status": "success",
-                "message": "User permissions updated successfully.",
-                "user": UserSerializer(target_user).data,
-            },
-            status=status.HTTP_200_OK,
         )
 
 

@@ -1,0 +1,15 @@
+{
+  "experiment": "C_hard_NEI_final",
+  "model": "cross-encoder/nli-roberta-base",
+  "real_training_pairs": 11888,
+  "controlled_unrelated_nei": 900,
+  "curated_hard_nei": 18,
+  "frozen_bottom_layers": 6,
+  "maximum_epochs": 5,
+  "best_checkpoint": "/content/academic_roberta_experiment_B_checkpoints/checkpoint-4005",
+  "best_dev_macro_f1": 0.722747576906869,
+  "academic_test_macro_f1_mean": 0.6102913962462093,
+  "challenge_size": 30,
+  "challenge_accuracy": 0.8666666666666667,
+  "accepted_by_current_gate": true
+}

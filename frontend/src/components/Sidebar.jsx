@@ -32,7 +32,7 @@ import api from '../utils/api';
  * @param {string} displayName - User's display name
  * @param {string} subscriptionPlan - User's subscription plan
  */
-export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayName = '', subscriptionPlan = 'Free' }) {
+export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayName = '', subscriptionPlan = 'Free', adminMode = false }) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -111,6 +111,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
   };
 
   const handleSubscribe = () => {
+    if (adminMode) return;
     router.push('/payment?plan=monthly');
     setIsMobileOpen(false);
   };
@@ -152,54 +153,58 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
 
         {/* Navigation Links */}
         <nav className="flex flex-col gap-6 mt-4 w-full">
-          <button
-            onClick={() => handleNavClick('dashboard', '/dashboard')}
-            className={navButtonClass('dashboard', '/dashboard')}
-            title="Dashboard"
-          >
-            <LayoutDashboard size={18} className="shrink-0" />
-            {!isCollapsed && <span className="truncate">Dashboard</span>}
-          </button>
+          {!adminMode && (
+            <>
+              <button
+                onClick={() => handleNavClick('dashboard', '/dashboard')}
+                className={navButtonClass('dashboard', '/dashboard')}
+                title="Dashboard"
+              >
+                <LayoutDashboard size={18} className="shrink-0" />
+                {!isCollapsed && <span className="truncate">Dashboard</span>}
+              </button>
 
-          <button
-            onClick={() => handleNavClick('detector', '/dashboard?tab=detector')}
-            className={navButtonClass('detector', null)}
-            title="AI Content Detector"
-          >
-            <ShieldCheck size={18} className="shrink-0" />
-            {!isCollapsed && <span className="truncate">AI Detector</span>}
-          </button>
+              <button
+                onClick={() => handleNavClick('detector', '/dashboard?tab=detector')}
+                className={navButtonClass('detector', null)}
+                title="AI Content Detector"
+              >
+                <ShieldCheck size={18} className="shrink-0" />
+                {!isCollapsed && <span className="truncate">AI Detector</span>}
+              </button>
 
-          {/* Account Section */}
-          <div className="flex flex-col gap-2 w-full">
-            {!isCollapsed && (
-              <span className="text-xs font-bold text-stone-400/80 tracking-wider uppercase px-4 whitespace-nowrap">Account</span>
-            )}
-            <button
-              onClick={() => handleNavClick('account', '/dashboard?tab=account')}
-              className={`flex items-center gap-3 rounded-full text-[15.5px] transition-all text-left w-full ${
-                isActive('account', null)
-                  ? 'bg-stone-900 text-white shadow-sm font-semibold'
-                  : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
-              } ${isCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'}`}
-              title="Account"
-            >
-              <User size={18} className="shrink-0" />
-              {!isCollapsed && <span className="truncate">Account</span>}
-            </button>
-            <button
-              onClick={() => handleNavClick('plans', '/dashboard?tab=plans')}
-              className={`flex items-center gap-3 rounded-full text-[15.5px] transition-all text-left w-full ${
-                isActive('plans', null)
-                  ? 'bg-stone-900 text-white shadow-sm font-semibold'
-                  : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
-              } ${isCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'}`}
-              title="Plans & Pricing"
-            >
-              <CreditCard size={18} className="shrink-0" />
-              {!isCollapsed && <span className="truncate">Plans & Pricing</span>}
-            </button>
-          </div>
+              {/* Account Section */}
+              <div className="flex flex-col gap-2 w-full">
+                {!isCollapsed && (
+                  <span className="text-xs font-bold text-stone-400/80 tracking-wider uppercase px-4 whitespace-nowrap">Account</span>
+                )}
+                <button
+                  onClick={() => handleNavClick('account', '/dashboard?tab=account')}
+                  className={`flex items-center gap-3 rounded-full text-[15.5px] transition-all text-left w-full ${
+                    isActive('account', null)
+                      ? 'bg-stone-900 text-white shadow-sm font-semibold'
+                      : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
+                  } ${isCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'}`}
+                  title="Account"
+                >
+                  <User size={18} className="shrink-0" />
+                  {!isCollapsed && <span className="truncate">Account</span>}
+                </button>
+                <button
+                  onClick={() => handleNavClick('plans', '/dashboard?tab=plans')}
+                  className={`flex items-center gap-3 rounded-full text-[15.5px] transition-all text-left w-full ${
+                    isActive('plans', null)
+                      ? 'bg-stone-900 text-white shadow-sm font-semibold'
+                      : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/50 font-medium'
+                  } ${isCollapsed ? 'p-2.5 justify-center' : 'px-4 py-2'}`}
+                  title="Plans & Pricing"
+                >
+                  <CreditCard size={18} className="shrink-0" />
+                  {!isCollapsed && <span className="truncate">Plans & Pricing</span>}
+                </button>
+              </div>
+            </>
+          )}
 
           {/* Admin Panel (only visible to admins) */}
           {isAdmin && (
@@ -223,7 +228,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
           )}
 
           {/* Help Section */}
-          <div className="flex flex-col gap-2 w-full">
+          {!adminMode && <div className="flex flex-col gap-2 w-full">
             {!isCollapsed && (
               <span className="text-xs font-bold text-stone-400/80 tracking-wider uppercase px-4 whitespace-nowrap">Help</span>
             )}
@@ -261,7 +266,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
               <MessageSquare size={18} className="shrink-0" />
               {!isCollapsed && <span className="truncate">Discord</span>}
             </button>
-          </div>
+          </div>}
         </nav>
       </div>
 
@@ -271,7 +276,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
           <button
             onClick={() => handleNavClick('account', '/dashboard?tab=account')}
             className="relative cursor-pointer hover:scale-105 transition-all w-10 h-10 rounded-full bg-gradient-to-br from-[#7755FF] to-[#4F33FF] flex items-center justify-center text-white font-bold text-[15px] shadow-sm border-none outline-none shrink-0"
-            title={`${displayName} - ${subscriptionPlan} Plan`}
+            title={adminMode ? `${displayName} - Admin` : `${displayName} - ${subscriptionPlan} Plan`}
           >
             {(displayName || 'User').charAt(0)}
             <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-[#22C55E] ring-2 ring-white"></span>
@@ -292,9 +297,14 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
               <div className="flex flex-col min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-extrabold text-[14px] tracking-tight truncate text-stone-900 leading-none">{displayName}</span>
-                  {subscriptionPlan !== 'Free' && (
+                  {!adminMode && subscriptionPlan !== 'Free' && (
                     <span className="px-1.5 py-0.5 bg-[#1FA463]/10 text-[#1FA463] text-[8px] font-extrabold rounded-full uppercase tracking-wider border border-[#1FA463]/20 shrink-0">
                       {subscriptionPlan}
+                    </span>
+                  )}
+                  {adminMode && (
+                    <span className="px-1.5 py-0.5 bg-stone-900/10 text-stone-700 text-[8px] font-extrabold rounded-full uppercase tracking-wider border border-stone-900/10 shrink-0">
+                      Admin
                     </span>
                   )}
                 </div>
@@ -304,7 +314,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
 
             {/* Action Buttons */}
             <div className="flex flex-col gap-2">
-              {subscriptionPlan === 'Free' ? (
+              {!adminMode && subscriptionPlan === 'Free' ? (
                 <button
                   onClick={handleSubscribe}
                   className="w-full py-1.5 pl-1.5 pr-4 bg-stone-950/5 hover:bg-stone-950/10 active:scale-98 border border-stone-900/5 rounded-full flex items-center gap-2.5 transition-all cursor-pointer text-left shadow-sm"
@@ -316,7 +326,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
                   </div>
                   <span className="text-[11px] font-bold text-stone-800 tracking-wide">Upgrade Now</span>
                 </button>
-              ) : (
+              ) : !adminMode ? (
                 <button
                   onClick={() => handleNavClick('plans', '/dashboard?tab=plans')}
                   className="w-full py-1.5 pl-1.5 pr-4 bg-[#1FA463]/5 hover:bg-[#1FA463]/10 border border-[#1FA463]/10 rounded-full flex items-center gap-2.5 transition-all cursor-pointer text-left shadow-sm"
@@ -328,7 +338,7 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
                   </div>
                   <span className="text-[11px] font-bold text-[#1FA463] tracking-wide">Manage Plan</span>
                 </button>
-              )}
+              ) : null}
 
               <button
                 onClick={handleLogoutClick}

@@ -415,12 +415,12 @@ class ApiFlowTests(SimpleTestCase):
         self.assertEqual(stats.status_code, 200, stats.data)
         self.assertEqual(stats.data["stats"]["total_users"], 1)
 
-        self_revoke = self.client.patch(
+        removed_admin_update = self.client.patch(
             f"/api/auth/admin-users/{current_user.id}/",
             {"is_admin": False},
             format="json",
         )
-        self.assertEqual(self_revoke.status_code, 400, self_revoke.data)
+        self.assertEqual(removed_admin_update.status_code, 404, removed_admin_update.data)
 
     def test_existing_accounts_default_to_onboarding_complete(self):
         legacy_user = User(

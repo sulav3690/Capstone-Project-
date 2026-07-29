@@ -28,6 +28,11 @@ if user:
     if user.email != email and not User.objects(email=email).first():
         user.email = email
         changed = True
+    if user.subscription_plan != "Free":
+        user.subscription_plan = "Free"
+        user.subscription_started_at = None
+        user.subscription_expires_at = None
+        changed = True
     if changed:
         user.save()
     print(f"Admin ready: {username}")
@@ -38,7 +43,7 @@ else:
         full_name="Admin User",
         role="other",
         is_admin=True,
-        subscription_plan="Yearly",
+        subscription_plan="Free",
     )
     user.set_password(password)
     user.save()

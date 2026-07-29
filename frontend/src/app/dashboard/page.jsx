@@ -68,6 +68,13 @@ const SUPPORTED_DOCUMENT_ACCEPT = [
   '.xml',
 ].join(',');
 
+const riskTier = (verdict) => {
+  const value = String(verdict || '').toLowerCase();
+  if (value.includes('high')) return 'high';
+  if (value.includes('moderate') || value.includes('medium')) return 'medium';
+  return 'low';
+};
+
 const PLAN_ACCESS_FALLBACKS = {
   Free: DEFAULT_SUBSCRIPTION_ACCESS,
   Monthly: {
@@ -933,26 +940,26 @@ const Detector = () => {
 
                           <div className="flex flex-col items-center mb-6">
                             {/* Misinformation Risk Gauge */}
-                            <div className="w-28 h-28 rounded-full border-8 border-stone-100 flex flex-col items-center justify-center relative shadow-sm mb-4 px-3 text-center overflow-hidden">
-                              <span className={`text-2xl font-black uppercase ${resultsData.misinfoRisk === 'High'
+                            <div className="w-28 h-28 rounded-full border-8 border-stone-100 flex flex-col items-center justify-center relative shadow-sm mb-4 px-4 text-center overflow-hidden">
+                              <span className={`block w-full text-lg font-black uppercase ${riskTier(resultsData.misinfoRisk) === 'high'
                                   ? 'text-red-500'
-                                  : resultsData.misinfoRisk === 'Medium'
+                                  : riskTier(resultsData.misinfoRisk) === 'medium'
                                     ? 'text-amber-500'
                                     : 'text-[#1FA463]'
-                                } leading-[1.15] max-w-full break-words`}>{resultsData.misinfoRisk}</span>
+                                } leading-none break-words`}>{resultsData.misinfoRisk}</span>
                               <span className="text-[10px] font-bold text-stone-400 uppercase">Risk</span>
                             </div>
 
                             {/* Simple Progress Bar */}
                             <div className="w-full h-2 bg-stone-100 rounded-full mb-6">
                               <div
-                                className={`h-full rounded-full transition-all duration-1000 ${resultsData.misinfoRisk === 'High'
+                                className={`h-full rounded-full transition-all duration-1000 ${riskTier(resultsData.misinfoRisk) === 'high'
                                     ? 'bg-red-500'
-                                    : resultsData.misinfoRisk === 'Medium'
+                                    : riskTier(resultsData.misinfoRisk) === 'medium'
                                       ? 'bg-amber-500'
                                       : 'bg-[#1FA463]'
                                   }`}
-                                style={{ width: resultsData.misinfoRisk === 'High' ? '90%' : resultsData.misinfoRisk === 'Medium' ? '50%' : '15%' }}
+                                style={{ width: riskTier(resultsData.misinfoRisk) === 'high' ? '90%' : riskTier(resultsData.misinfoRisk) === 'medium' ? '50%' : '15%' }}
                               />
                             </div>
                           </div>
@@ -962,19 +969,19 @@ const Detector = () => {
                               <div className="flex justify-between items-center border-b border-stone-100 pb-2">
                                 <span className="text-[13px] text-stone-500 font-semibold">Unverified Claims Flags</span>
                                 <span className="text-[14px] font-bold text-stone-800">
-                                  {resultsData.misinfoRisk === 'High' ? '3 flags' : resultsData.misinfoRisk === 'Medium' ? '1 flag' : '0 flags'}
+                                  {resultsData.details?.misinfo_details?.unverified_claims_count ?? 0} flags
                                 </span>
                               </div>
                               <div className="flex justify-between items-center border-b border-stone-100 pb-2">
-                                <span className="text-[13px] text-stone-500 font-semibold">Sensationalism & Clickbait</span>
+                                <span className="text-[13px] text-stone-500 font-semibold">Contradicted Claims</span>
                                 <span className="text-[14px] font-bold text-stone-800">
-                                  {resultsData.misinfoRisk === 'High' ? 'High Presence' : resultsData.misinfoRisk === 'Medium' ? 'Moderate' : 'Negligible'}
+                                  {resultsData.details?.misinfo_details?.contradicted_count ?? 0}
                                 </span>
                               </div>
                               <div className="flex justify-between items-center">
-                                <span className="text-[13px] text-stone-500 font-semibold">Capitalization Ratio</span>
+                                <span className="text-[13px] text-stone-500 font-semibold">Claims Checked</span>
                                 <span className="text-[14px] font-bold text-stone-800">
-                                  {resultsData.details?.misinfo_details?.capitalization_ratio_percent ?? 0}%
+                                  {resultsData.details?.misinfo_details?.claims_checked ?? 0}
                                 </span>
                               </div>
                             </div>
