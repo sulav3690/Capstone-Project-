@@ -4,11 +4,20 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework import serializers
 
 from apps.accounts.subscriptions import get_subscription_access
+from .document_text import (
+    DocumentTextExtractionError,
+    SUPPORTED_DOCUMENT_EXTENSIONS,
+    extract_text_from_document,
+)
 from .models import AnalysisJob, AnalysisRecord
 from .tasks import run_detector_analysis
+
+
+MAX_DOCUMENT_UPLOAD_BYTES = 25 * 1024 * 1024
 
 
 class AnalysisRequestSerializer(serializers.Serializer):
@@ -23,6 +32,20 @@ class AnalysisRequestSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 f"Your plan supports up to {word_limit:,} words per scan."
             )
+        return value
+
+
+class DocumentExtractSerializer(serializers.Serializer):
+    file = serializers.FileField(required=True)
+
+    def validate_file(self, value):
+        extension = "." + value.name.rsplit(".", 1)[-1].lower() if "." in value.name else ""
+        if extension not in SUPPORTED_DOCUMENT_EXTENSIONS:
+            raise serializers.ValidationError(
+                "Unsupported file type. Upload PDF, DOCX, PPTX, XLSX, ODT, ODS, ODP, LaTeX, CSV, Markdown, HTML, or plain text."
+            )
+        if value.size > MAX_DOCUMENT_UPLOAD_BYTES:
+            raise serializers.ValidationError("Upload a document smaller than 25 MB.")
         return value
 
 
@@ -160,6 +183,71 @@ class AnalyzeView(APIView):
         elif job.status == 'FAILED':
             payload["message"] = "Analysis could not be completed."
         return payload
+
+
+class DocumentExtractView(APIView):
+    """
+    POST /api/analyze/extract/
+    Extracts readable text from an uploaded document so it can be analyzed.
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        serializer = DocumentExtractSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Document upload validation failed.",
+                    "details": serializer.errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        uploaded_file = serializer.validated_data["file"]
+        content = b"".join(uploaded_file.chunks())
+
+        try:
+            text = extract_text_from_document(uploaded_file.name, content)
+        except DocumentTextExtractionError as exc:
+            return Response(
+                {
+                    "status": "error",
+                    "message": str(exc),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not text:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "No readable text was found in this document.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        access = get_subscription_access(request.user)
+        word_count = len(text.split())
+        if word_count > access["word_limit"]:
+            return Response(
+                {
+                    "status": "error",
+                    "message": f"Your plan supports up to {access['word_limit']:,} words per scan.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "status": "success",
+                "filename": uploaded_file.name,
+                "text": text,
+                "word_count": word_count,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class JobStatusView(APIView):

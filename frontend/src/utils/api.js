@@ -74,7 +74,10 @@ async function request(endpoint, options = {}) {
     ...(options.headers || {})
   };
 
-  if (options.body !== undefined && !headers['Content-Type']) {
+  const isFormData =
+    typeof FormData !== 'undefined' && options.body instanceof FormData;
+
+  if (options.body !== undefined && !headers['Content-Type'] && !isFormData) {
     headers['Content-Type'] = 'application/json';
   }
 
@@ -103,7 +106,9 @@ async function request(endpoint, options = {}) {
     signal: controller.signal,
   };
 
-  if (options.body && typeof options.body === 'object') {
+  if (isFormData) {
+    config.body = options.body;
+  } else if (options.body && typeof options.body === 'object') {
     config.body = JSON.stringify(options.body);
   }
 

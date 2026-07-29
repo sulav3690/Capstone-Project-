@@ -46,6 +46,28 @@ const DEFAULT_SUBSCRIPTION_ACCESS = {
   support_tier: 'community',
 };
 
+const SUPPORTED_DOCUMENT_ACCEPT = [
+  '.pdf',
+  '.docx',
+  '.pptx',
+  '.xlsx',
+  '.ods',
+  '.odt',
+  '.odp',
+  '.tex',
+  '.latex',
+  '.txt',
+  '.text',
+  '.md',
+  '.csv',
+  '.tsv',
+  '.rtf',
+  '.html',
+  '.htm',
+  '.json',
+  '.xml',
+].join(',');
+
 const PLAN_ACCESS_FALLBACKS = {
   Free: DEFAULT_SUBSCRIPTION_ACCESS,
   Monthly: {
@@ -477,23 +499,36 @@ const Detector = () => {
     }
   };
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 8 * 1024 * 1024) {
-      showToast('Please upload a text file smaller than 8 MB.', 'error');
+    if (file.size > 25 * 1024 * 1024) {
+      showToast('Please upload a document smaller than 25 MB.', 'error');
       e.target.value = '';
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
+
+    try {
+      showToast(`Reading ${file.name}...`, 'info');
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await api.post('/api/analyze/extract/', formData, {
+        timeoutMs: 60000,
+      });
+
       if (editorRef.current) {
-        editorRef.current.innerText = ev.target.result;
+        editorRef.current.innerText = response.text;
         setError('');
-        checkAndResetResults(ev.target.result);
+        checkAndResetResults(response.text);
       }
-    };
-    reader.readAsText(file);
+      showToast(`Loaded ${response.word_count.toLocaleString()} words from ${file.name}.`, 'success');
+    } catch (err) {
+      const message = err.message || 'Could not read this document.';
+      setError(message);
+      showToast(message, 'error');
+    } finally {
+      e.target.value = '';
+    }
   };
 
   if (!isMounted) {
@@ -761,7 +796,7 @@ const Detector = () => {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept=".txt,.md,.csv"
+                      accept={SUPPORTED_DOCUMENT_ACCEPT}
                       className="hidden"
                       onChange={handleFileUpload}
                     />
@@ -898,13 +933,13 @@ const Detector = () => {
 
                           <div className="flex flex-col items-center mb-6">
                             {/* Misinformation Risk Gauge */}
-                            <div className="w-28 h-28 rounded-full border-8 border-stone-100 flex flex-col items-center justify-center relative shadow-sm mb-4">
+                            <div className="w-28 h-28 rounded-full border-8 border-stone-100 flex flex-col items-center justify-center relative shadow-sm mb-4 px-3 text-center overflow-hidden">
                               <span className={`text-2xl font-black uppercase ${resultsData.misinfoRisk === 'High'
                                   ? 'text-red-500'
                                   : resultsData.misinfoRisk === 'Medium'
                                     ? 'text-amber-500'
                                     : 'text-[#1FA463]'
-                                }`}>{resultsData.misinfoRisk}</span>
+                                } leading-[1.15] max-w-full break-words`}>{resultsData.misinfoRisk}</span>
                               <span className="text-[10px] font-bold text-stone-400 uppercase">Risk</span>
                             </div>
 
