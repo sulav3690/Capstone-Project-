@@ -284,13 +284,16 @@ export default function AuthContainer({ mode }) {
         <div className="flex items-center gap-12">
           <Link href="/" className="flex items-center hover:opacity-80 transition-all">
             <Image
-              src="/Headerfinal.webp" 
-              alt="VeritasAI" 
-              width={188}
-              height={80}
+              src="/Vertias_io/android-chrome-192x192.png"
+              alt=""
+              width={40}
+              height={40}
               priority
-              className="h-10 w-auto object-contain" 
+              className="h-10 w-10 object-contain"
             />
+            <span className="ml-2 text-[18px] font-black tracking-tight text-stone-950">
+              VeritasAI
+            </span>
           </Link>
           <div className="hidden md:flex items-center gap-8">
             <Link href="/#faq" className="text-[15px] font-medium text-stone-600 hover:text-stone-900 transition-colors tracking-wide">

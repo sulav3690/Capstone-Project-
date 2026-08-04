@@ -24,6 +24,7 @@ class AnalysisRequestSerializer(serializers.Serializer):
     text = serializers.CharField(min_length=20, required=True)
     aiDetection = serializers.BooleanField(default=True)
     misinformation = serializers.BooleanField(default=True)
+    limeAnalysis = serializers.BooleanField(default=False)
 
     def validate_text(self, value):
         word_limit = self.context.get("word_limit", 10_000)
@@ -91,6 +92,8 @@ class AnalyzeView(APIView):
             text = serializer.validated_data['text']
             ai_enabled = serializer.validated_data['aiDetection']
             misinfo_enabled = serializer.validated_data['misinformation']
+            lime_enabled = serializer.validated_data['limeAnalysis']
+            analysis_features = {**access["features"], "lime_analysis": lime_enabled}
 
             # Generate unique job tracking identifier
             job_id = str(uuid.uuid4())
@@ -114,7 +117,7 @@ class AnalyzeView(APIView):
                             text,
                             ai_enabled,
                             misinfo_enabled,
-                            access["features"],
+                            analysis_features,
                         ],
                         priority=access["queue_priority"],
                     )
@@ -127,7 +130,7 @@ class AnalyzeView(APIView):
                         text,
                         ai_enabled,
                         misinfo_enabled,
-                        access["features"],
+                        analysis_features,
                     )
             else:
                 # No Redis — run synchronously
@@ -137,7 +140,7 @@ class AnalyzeView(APIView):
                     text,
                     ai_enabled,
                     misinfo_enabled,
-                    access["features"],
+                    analysis_features,
                 )
 
             payload = {

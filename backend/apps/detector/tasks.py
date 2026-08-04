@@ -5,8 +5,21 @@ from celery import shared_task
 from django.conf import settings
 
 from .ai_model import DetectorModelUnavailable, predict_ai
+from .lime import explain_ai_text, explain_misinformation_text
 from .misinfo_model import MisinformationModelUnavailable, predict_misinformation
 from .models import AnalysisJob, AnalysisRecord
+
+
+DETAILED_MAX_CHUNKS = 6
+DETAILED_MAX_CLAIMS = 6
+LIME_NUM_SAMPLES = 10
+LIME_AI_WORD_LIMIT = 220
+LIME_MISINFO_MAX_CLAIMS = 4
+
+
+def _word_excerpt(text, max_words):
+    words = str(text).split()
+    return " ".join(words[:max_words]) if len(words) > max_words else str(text)
 
 
 def _text_metrics(text):
@@ -92,7 +105,7 @@ def _ai_prediction(text, ai_enabled, features, metrics, digest):
     if features.get("deep_scan"):
         max_chunks = 8
     if features.get("detailed_reports"):
-        max_chunks = 12
+        max_chunks = DETAILED_MAX_CHUNKS
 
     try:
         return predict_ai(text, max_chunks=max_chunks)
@@ -167,7 +180,7 @@ def _misinformation_prediction(text, words, misinfo_enabled, features, digest):
     if features.get("advanced_misinformation"):
         max_claims = 8
     if features.get("detailed_reports"):
-        max_claims = 12
+        max_claims = DETAILED_MAX_CLAIMS
 
     try:
         prediction = predict_misinformation(text, max_claims=max_claims)
@@ -210,6 +223,13 @@ def _misinformation_prediction(text, words, misinfo_enabled, features, digest):
     )
     details["fallback_reason"] = "Misinformation RoBERTa model is not available locally."
     return score, details
+
+
+def _safe_lime_explanation(callback, *args, **kwargs):
+    try:
+        return callback(*args, **kwargs), None
+    except Exception as exc:
+        return None, str(exc)[:300]
 
 
 @shared_task
@@ -266,6 +286,8 @@ def run_detector_analysis(
                     "ai_threshold": ai_result.get("ai_threshold"),
                 }
             )
+        lime_enabled = bool(features.get("lime_analysis"))
+
         if features.get("detailed_reports"):
             ai_details.update(
                 {
@@ -274,9 +296,31 @@ def run_detector_analysis(
                     "burstiness_score": burstiness,
                 }
             )
+            if ai_enabled and lime_enabled:
+                lime_result, lime_error = _safe_lime_explanation(
+                    explain_ai_text,
+                    _word_excerpt(text, LIME_AI_WORD_LIMIT),
+                    num_samples=LIME_NUM_SAMPLES,
+                )
+                if lime_result is not None:
+                    ai_details["lime"] = lime_result
+                else:
+                    ai_details["lime_error"] = lime_error
 
         if not features.get("advanced_misinformation"):
             misinfo_details = {"verdict": misinfo_details["verdict"]}
+        if features.get("detailed_reports") and misinfo_enabled and lime_enabled:
+            lime_result, lime_error = _safe_lime_explanation(
+                explain_misinformation_text,
+                text,
+                max_claims=LIME_MISINFO_MAX_CLAIMS,
+                max_explanations=1,
+                num_samples=LIME_NUM_SAMPLES,
+            )
+            if lime_result is not None:
+                misinfo_details["lime"] = lime_result
+            else:
+                misinfo_details["lime_error"] = lime_error
 
         detailed_breakdown = {
             "metrics": {

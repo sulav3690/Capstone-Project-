@@ -39,7 +39,7 @@ export default function Contact() {
   };
 
   return (
-    <PublicLayout>
+    <PublicLayout hideHeaderWhenAuthenticated={false}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-16">
         
         {/* Header Block */}

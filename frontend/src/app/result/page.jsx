@@ -8,6 +8,8 @@ import Button from '../../components/ui/Button';
 import safeLocalStorage from '../../utils/safeLocalStorage';
 import { analyzeText, buildHighlightedSegments } from '../../utils/analyzeText';
 
+const REPORT_STORAGE_KEY = 'veritas_detailed_report';
+
 const LegendItem = ({ colorClass, label }) => (
   <div className="flex items-center gap-2">
     <div className={`h-1 w-6 rounded-full ${colorClass}`} />
@@ -27,6 +29,10 @@ const Result = () => {
       const analysis = analyzeText(saved);
       setResult(analysis);
       setSegments(buildHighlightedSegments(saved, analysis.aiPct));
+      safeLocalStorage.setItem(
+        REPORT_STORAGE_KEY,
+        JSON.stringify({ text: saved, result: analysis })
+      );
     }
   }, []);
 

@@ -28,7 +28,7 @@ export default function PublicHeader({
   useEffect(() => {
     let active = true;
 
-    api.get('/api/auth/me/')
+    api.get('/api/auth/me/', { suppressErrorLog: true, timeoutMs: 3000 })
       .then((response) => {
         if (!active) return;
         setAuthStatus(response.status === 'success' && response.user ? 'authenticated' : 'anonymous');
@@ -159,13 +159,16 @@ export default function PublicHeader({
             aria-label="VeritasAI homepage"
           >
             <Image
-              src="/Headerfinal.webp"
-              alt="VeritasAI"
-              width={188}
-              height={80}
+              src="/Vertias_io/android-chrome-192x192.png"
+              alt=""
+              width={40}
+              height={40}
               priority
-              className="h-10 w-auto object-contain"
+              className="h-10 w-10 object-contain"
             />
+            <span className="ml-2 text-[18px] font-black tracking-tight text-stone-950">
+              VeritasAI
+            </span>
           </Link>
 
           <nav className="hidden items-center gap-1 md:flex" aria-label="Public navigation">

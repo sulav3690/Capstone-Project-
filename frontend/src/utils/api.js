@@ -66,6 +66,7 @@ async function request(endpoint, options = {}) {
   const {
     timeoutMs = 15000,
     skipAuthRefresh = false,
+    suppressErrorLog = false,
     ...fetchOptions
   } = options;
 
@@ -176,7 +177,7 @@ async function request(endpoint, options = {}) {
           : 'The request was cancelled.'
       );
     }
-    if (!error?.status || error.status >= 500) {
+    if (!suppressErrorLog && (!error?.status || error.status >= 500)) {
       console.error(`API Error on ${endpoint}:`, error);
     }
     if (error instanceof TypeError) {

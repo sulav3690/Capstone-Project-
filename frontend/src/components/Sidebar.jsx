@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   ShieldCheck,
@@ -141,9 +142,14 @@ export default function Sidebar({ activeTab = 'dashboard', onTabChange, displayN
           className={`flex items-center gap-3 w-full cursor-pointer hover:opacity-80 transition-all ${isCollapsed ? 'justify-center' : ''}`}
           title="Go to Homepage"
         >
-          <div className="bg-gradient-to-br from-[#7755FF] to-[#4F33FF] p-[6px] rounded-lg shadow-lg shrink-0">
-            <ShieldCheck size={22} className="text-white" strokeWidth={2.5} />
-          </div>
+          <Image
+            src="/Vertias_io/android-chrome-192x192.png"
+            alt=""
+            width={40}
+            height={40}
+            className="h-10 w-10 shrink-0 object-contain"
+            priority
+          />
           {!isCollapsed && (
             <span className="font-normal text-[22px] tracking-tight text-stone-900 transition-all duration-300 whitespace-nowrap overflow-hidden">
               Veritas<span className="font-bold">AI</span>

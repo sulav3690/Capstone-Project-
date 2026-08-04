@@ -69,6 +69,39 @@ def _claim_pairs(text, max_claims):
     return pairs
 
 
+def misinformation_class_names():
+    bundle = _load_model_bundle()
+    model = bundle["model"]
+    id2label = getattr(model.config, "id2label", {}) or {}
+    return [
+        id2label.get(index) or id2label.get(str(index), str(index))
+        for index in range(model.config.num_labels)
+    ]
+
+
+def predict_misinformation_pair_probabilities(evidence_texts, claim):
+    if not evidence_texts:
+        return []
+
+    bundle = _load_model_bundle()
+    torch = bundle["torch"]
+    tokenizer = bundle["tokenizer"]
+    model = bundle["model"]
+
+    encoded = tokenizer(
+        [str(text) for text in evidence_texts],
+        [claim] * len(evidence_texts),
+        padding=True,
+        truncation=True,
+        max_length=bundle["max_length"],
+        return_tensors="pt",
+    )
+    with torch.no_grad():
+        probabilities = torch.softmax(model(**encoded).logits, dim=-1)
+
+    return [[float(value.item()) for value in row] for row in probabilities]
+
+
 def predict_misinformation(text, max_claims=8):
     pairs = _claim_pairs(text, max(1, int(max_claims)))
     if not pairs:

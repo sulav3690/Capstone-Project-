@@ -5,11 +5,9 @@ import { useRouter } from 'next/navigation';
 import {
   Upload,
   AlertCircle,
-  ShieldCheck,
   Check,
   Plus,
   Minus,
-  Sparkles,
   ArrowRight,
   CheckCircle,
   Lock,
@@ -20,7 +18,9 @@ import {
   Trash2,
   FileText,
   X,
-  TrendingUp
+  FileSearch,
+  Gauge,
+  Crown
 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Toggle from '../../components/ui/Toggle';
@@ -68,11 +68,28 @@ const SUPPORTED_DOCUMENT_ACCEPT = [
   '.xml',
 ].join(',');
 
+const ANALYSIS_REQUEST_TIMEOUT_MS = 30000;
+const ANALYSIS_POLL_ATTEMPTS = 30;
+const ANALYSIS_POLL_INTERVAL_MS = 1000;
+
 const riskTier = (verdict) => {
   const value = String(verdict || '').toLowerCase();
   if (value.includes('high')) return 'high';
   if (value.includes('moderate') || value.includes('medium')) return 'medium';
   return 'low';
+};
+
+const REPORT_STORAGE_KEY = 'veritas_detailed_report';
+
+const saveReportSnapshot = (text, result) => {
+  const cleanText = String(text || '').trim();
+  if (!cleanText || !result) return;
+
+  safeLocalStorage.setItem('veritas_text', cleanText);
+  safeLocalStorage.setItem(
+    REPORT_STORAGE_KEY,
+    JSON.stringify({ text: cleanText, result })
+  );
 };
 
 const PLAN_ACCESS_FALLBACKS = {
@@ -177,9 +194,13 @@ const Detector = () => {
         analysis.aiPct = scan.score;
         analysis.humanPct = 100 - scan.score;
         analysis.authenticity = 100 - scan.score;
+        analysis.misinfoRisk = scan.misinfoRisk;
+        analysis.misinformationScore = scan.misinformationScore;
+        analysis.details = scan.details;
         
         setResultsData(analysis);
         setSegments(buildHighlightedSegments(scan.text, scan.score));
+        saveReportSnapshot(scan.text, analysis);
         setIsAnalyzing(false);
         showToast(`Loaded results for ${scan.filename}`, 'success');
         
@@ -219,6 +240,7 @@ const Detector = () => {
             id: item.id,
             filename: name || 'scan_result.txt',
             score: Math.round(item.ai_score),
+            misinformationScore: Math.round(item.misinformation_score),
             time: timeStr,
             text: item.input_text,
             misinfoRisk: item.detailed_breakdown?.misinfo_details?.verdict || 'Low Risk',
@@ -421,9 +443,10 @@ const Detector = () => {
         {
           text: plainText,
           aiDetection,
-          misinformation
+          misinformation,
+          limeAnalysis: hasDetailedReports
         },
-        { signal: controller.signal, timeoutMs: 30000 }
+        { signal: controller.signal, timeoutMs: ANALYSIS_REQUEST_TIMEOUT_MS }
       );
 
       if (res.status === 'success' && res.job_id) {
@@ -431,13 +454,13 @@ const Detector = () => {
         let job = res.job;
         const completedSynchronously = Boolean(res.job);
 
-        for (let attempt = 0; attempt < 30; attempt += 1) {
+        for (let attempt = 0; attempt < ANALYSIS_POLL_ATTEMPTS; attempt += 1) {
           if (job?.status === 'SUCCESS' || job?.status === 'FAILED') break;
-          await new Promise((resolve) => setTimeout(resolve, 750));
+          await new Promise((resolve) => setTimeout(resolve, ANALYSIS_POLL_INTERVAL_MS));
           if (controller.signal.aborted) return;
           const statusRes = await api.get(
             `/api/analyze/status/${jobId}/`,
-            { signal: controller.signal }
+            { signal: controller.signal, timeoutMs: 20000 }
           );
           if (statusRes.status === 'success') job = statusRes.job;
         }
@@ -450,11 +473,13 @@ const Detector = () => {
             aiPct: Math.round(record.ai_score),
             humanizedPct: 0,
             misinfoRisk: record.detailed_breakdown?.misinfo_details?.verdict || 'Low Risk',
+            misinformationScore: Math.round(record.misinformation_score),
             details: record.detailed_breakdown
           };
 
           setResultsData(analysis);
           setSegments(buildHighlightedSegments(plainText, record.ai_score));
+          saveReportSnapshot(plainText, analysis);
           if (completedSynchronously && res.subscription_access) {
             setSubscriptionAccess(res.subscription_access);
           } else {
@@ -493,6 +518,12 @@ const Detector = () => {
       setIsAnalyzing(false);
       showToast(err.message || "Connection to analysis server failed.", "error");
     }
+  };
+
+  const handleViewDetailedReport = () => {
+    const plainText = editorRef.current?.innerText || safeLocalStorage.getItem('veritas_text') || '';
+    saveReportSnapshot(plainText, resultsData);
+    router.push('/report');
   };
 
   const handleDeleteScan = async (event, scan) => {
@@ -616,7 +647,7 @@ const Detector = () => {
                 {/* Total Scans Run */}
                 <div className="bg-[#EEEDFC] border border-[#E0DDF9] rounded-[20px] px-6 py-6 flex items-center gap-4 transition-all duration-300 hover:-translate-y-0.5">
                   <div className="w-12 h-12 rounded-full bg-white/80 flex items-center justify-center shrink-0">
-                    <TrendingUp size={20} className="text-[#7755FF]" />
+                    <FileSearch size={20} className="text-[#7755FF]" />
                   </div>
                   <div className="flex flex-col">
                     <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider leading-none mb-2">Total Scans</span>
@@ -630,7 +661,7 @@ const Detector = () => {
                 {/* Average AI Score */}
                 <div className="bg-[#EEEDFC] border border-[#E0DDF9] rounded-[20px] px-6 py-6 flex items-center gap-4 transition-all duration-300 hover:-translate-y-0.5">
                   <div className="w-12 h-12 rounded-full bg-white/80 flex items-center justify-center shrink-0">
-                    <ShieldCheck size={20} className="text-[#7755FF]" />
+                    <Gauge size={20} className="text-[#7755FF]" />
                   </div>
                   <div className="flex flex-col">
                     <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider leading-none mb-2">Avg. AI Score</span>
@@ -649,7 +680,7 @@ const Detector = () => {
                 <div className="bg-[#EEEDFC] border border-[#E0DDF9] rounded-[20px] px-6 py-6 flex items-center justify-between transition-all duration-300 hover:-translate-y-0.5">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-white/80 flex items-center justify-center shrink-0">
-                      <Sparkles size={20} className="text-[#7755FF]" />
+                      <Crown size={20} className="text-[#7755FF]" />
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider leading-none mb-2">Current Plan</span>
@@ -871,7 +902,7 @@ const Detector = () => {
                     </div>
                     <h3 className="text-xl font-bold text-stone-800 mb-2">Analyzing your text...</h3>
                     <p className="text-stone-500 text-sm max-w-xs leading-relaxed mx-auto">
-                      VeritasAI is scanning perplexity, burstiness, and factual signals. This usually takes under 5 seconds.
+                      VeritasAI is scanning perplexity, burstiness, LIME, and factual signals. This usually takes 5-10 seconds.
                     </p>
                   </Card>
                 ) : resultsData && (
@@ -1101,6 +1132,16 @@ const Detector = () => {
                             </div>
                           ))}
                         </div>
+                        {hasDetailedReports && (
+                          <button
+                            type="button"
+                            onClick={handleViewDetailedReport}
+                            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#1FA463] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#178a52] active:scale-95"
+                          >
+                            <FileText size={16} />
+                            View Detailed Report
+                          </button>
+                        )}
                         {!hasDetailedReports && (
                           <button
                             type="button"
