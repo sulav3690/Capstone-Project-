@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { 
-  ShieldCheck, 
   ArrowRight, 
   Check, 
-  Sparkles, 
   GraduationCap, 
   Presentation, 
   Briefcase, 
@@ -192,14 +191,19 @@ export default function SurveyPage() {
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-b from-[#1FA463]/5 to-transparent blur-[120px] pointer-events-none z-0" />
       <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-t from-[#7755FF]/5 to-transparent blur-[100px] pointer-events-none z-0" />
 
-      {/* VeritasAI Brand Header Logo (Keep original blue-violet theme logo) */}
+      {/* VeritasAI Brand Header Logo */}
       <div 
         className="absolute top-6 left-6 md:top-8 md:left-12 flex items-center gap-3 cursor-pointer z-50 select-none animate-fadeIn"
         onClick={() => router.push('/')}
       >
-        <div className="bg-gradient-to-br from-[#7755FF] to-[#4F33FF] p-[6px] rounded-lg shadow-md hover:scale-105 transition-transform duration-200">
-          <ShieldCheck size={20} className="text-white" strokeWidth={2.5} />
-        </div>
+        <Image
+          src="/Vertias_io/android-chrome-192x192.png"
+          alt=""
+          width={40}
+          height={40}
+          priority
+          className="h-10 w-10 object-contain transition-transform duration-200 hover:scale-105"
+        />
         <span className="font-normal text-[20px] tracking-tight text-stone-900">Veritas<span className="font-bold">AI</span></span>
       </div>
 
